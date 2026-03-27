@@ -1,0 +1,19 @@
+# Environment variables — NEVER commit private keys or API keys
+.env
+
+# Go build output
+bin/
+build/
+
+# Go module cache
+vendor/
+
+# Node / Hardhat
+node_modules/
+artifacts/
+cache/
+typechain-types/
+
+# Coverage reports
+coverage/
+coverage.json

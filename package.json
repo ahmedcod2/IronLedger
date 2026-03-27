@@ -1,0 +1,17 @@
+{
+  "name": "ironledger",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IronLedger smart contract design draft for CSE 540",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
+}
