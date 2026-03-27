@@ -31,17 +31,17 @@ var (
 )
 
 // EquipmentData mirrors the Equipment struct defined in IEquipmentRegistry.sol.
-// Field names follow Go conventions (PascalCase); abigen maps them from the
-// Solidity camelCase names using the ABI component names.
+// The `abi` tags must exactly match the Solidity component names so that
+// abi.ConvertType can map the decoded anonymous struct onto this named type.
 type EquipmentData struct {
-	AssetId           string
-	Crn               string
-	ANumber           string
-	MdrHash           string
-	CurrentOperator   common.Address
-	CertificateIssued bool
-	Compliant         bool
-	Exists            bool
+	AssetId           string         `abi:"assetId"`
+	Crn               string         `abi:"crn"`
+	ANumber           string         `abi:"aNumber"`
+	MdrHash           string         `abi:"mdrHash"`
+	CurrentOperator   common.Address `abi:"currentOperator"`
+	CertificateIssued bool           `abi:"certificateIssued"`
+	Compliant         bool           `abi:"compliant"`
+	Exists            bool           `abi:"exists"`
 }
 
 // EquipmentRegistryABI is the JSON ABI of the deployed EquipmentRegistry contract.
@@ -188,32 +188,15 @@ func (t *EquipmentRegistryTransactor) SetComplianceStatus(
 // GetEquipment calls the view function getEquipment(string) and unpacks the
 // returned Equipment tuple into an EquipmentData Go struct.
 func (c *EquipmentRegistryCaller) GetEquipment(opts *bind.CallOpts, assetId string) (EquipmentData, error) {
-	// go-ethereum's ABI decoder decodes the tuple return value directly into
-	// a struct whose field tags match the ABI component names.
-	var result struct {
-		AssetId           string         `abi:"assetId"`
-		Crn               string         `abi:"crn"`
-		ANumber           string         `abi:"aNumber"`
-		MdrHash           string         `abi:"mdrHash"`
-		CurrentOperator   common.Address `abi:"currentOperator"`
-		CertificateIssued bool           `abi:"certificateIssued"`
-		Compliant         bool           `abi:"compliant"`
-		Exists            bool           `abi:"exists"`
-	}
-
-	out := []interface{}{&result}
+	// Use an empty slice — BoundContract.Call replaces it with the decoded values.
+	// Pre-populating the slice (as one might expect) causes the decoder to fail
+	// because Call overwrites the slice pointer before unmarshalling.
+	var out []interface{}
 	if err := c.contract.Call(opts, &out, "getEquipment", assetId); err != nil {
 		return EquipmentData{}, err
 	}
-
-	return EquipmentData{
-		AssetId:           result.AssetId,
-		Crn:               result.Crn,
-		ANumber:           result.ANumber,
-		MdrHash:           result.MdrHash,
-		CurrentOperator:   result.CurrentOperator,
-		CertificateIssued: result.CertificateIssued,
-		Compliant:         result.Compliant,
-		Exists:            result.Exists,
-	}, nil
+	// abi.ConvertType maps the decoded anonymous struct (out[0]) onto EquipmentData
+	// by matching each field via its `abi:"..."` tag to the ABI component name.
+	result := abi.ConvertType(out[0], new(EquipmentData)).(*EquipmentData)
+	return *result, nil
 }

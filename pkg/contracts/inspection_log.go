@@ -28,11 +28,12 @@ var (
 )
 
 // InspectionRecord mirrors the InspectionRecord struct in IInspectionLog.sol.
+// The `abi` tags must exactly match the Solidity component names.
 type InspectionRecord struct {
-	InspectionDate *big.Int
-	Inspector      common.Address
-	Passed         bool
-	Notes          string
+	InspectionDate *big.Int       `abi:"inspectionDate"`
+	Inspector      common.Address `abi:"inspector"`
+	Passed         bool           `abi:"passed"`
+	Notes          string         `abi:"notes"`
 }
 
 // InspectionLogABI is the JSON ABI of the deployed InspectionLog contract.
@@ -154,22 +155,10 @@ func (c *InspectionLogCaller) GetInspectionRecord(
 	assetId string,
 	index *big.Int,
 ) (InspectionRecord, error) {
-	var result struct {
-		InspectionDate *big.Int       `abi:"inspectionDate"`
-		Inspector      common.Address `abi:"inspector"`
-		Passed         bool           `abi:"passed"`
-		Notes          string         `abi:"notes"`
-	}
-
-	out := []interface{}{&result}
+	var out []interface{}
 	if err := c.contract.Call(opts, &out, "getInspectionRecord", assetId, index); err != nil {
 		return InspectionRecord{}, err
 	}
-
-	return InspectionRecord{
-		InspectionDate: result.InspectionDate,
-		Inspector:      result.Inspector,
-		Passed:         result.Passed,
-		Notes:          result.Notes,
-	}, nil
+	result := abi.ConvertType(out[0], new(InspectionRecord)).(*InspectionRecord)
+	return *result, nil
 }
