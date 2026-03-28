@@ -2,9 +2,6 @@
 //
 // Source contract : contracts/EquipmentRegistry.sol
 // Regenerate with : make bindings  (see Makefile)
-//
-// This file was hand-authored to match the expected abigen output until
-// `make bindings` has been run against the deployed contract ABIs.
 package contracts
 
 import (
@@ -19,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// Suppress unused-import errors until event subscriptions are wired up.
 var (
 	_ = big.NewInt
 	_ = strings.NewReader
@@ -30,70 +26,82 @@ var (
 	_ = event.NewSubscription
 )
 
-// EquipmentData mirrors the Equipment struct defined in IEquipmentRegistry.sol.
-// The `abi` tags must exactly match the Solidity component names so that
-// abi.ConvertType can map the decoded anonymous struct onto this named type.
+// EquipmentData mirrors the Equipment struct in IEquipmentRegistry.sol.
+// Status enum values: 0=Registered, 1=ShopInspected, 2=Certified, 3=Active.
 type EquipmentData struct {
-	AssetId           string         `abi:"assetId"`
-	Crn               string         `abi:"crn"`
-	ANumber           string         `abi:"aNumber"`
-	MdrHash           string         `abi:"mdrHash"`
-	CurrentOperator   common.Address `abi:"currentOperator"`
-	CertificateIssued bool           `abi:"certificateIssued"`
-	Compliant         bool           `abi:"compliant"`
-	Exists            bool           `abi:"exists"`
+	EquipmentId         *big.Int       `abi:"equipmentId"`
+	Crn                 string         `abi:"crn"`
+	ANumber             string         `abi:"aNumber"`
+	MdrHash             [32]byte       `abi:"mdrHash"`
+	Mawp                *big.Int       `abi:"mawp"`
+	Manufacturer        common.Address `abi:"manufacturer"`
+	RegisteredAt        *big.Int       `abi:"registeredAt"`
+	ShopInspector       common.Address `abi:"shopInspector"`
+	ShopInspectedAt     *big.Int       `abi:"shopInspectedAt"`
+	CertificateIssuer   common.Address `abi:"certificateIssuer"`
+	CertificateIssuedAt *big.Int       `abi:"certificateIssuedAt"`
+	Status              uint8          `abi:"status"`
 }
 
 // EquipmentRegistryABI is the JSON ABI of the deployed EquipmentRegistry contract.
-// It is used by go-ethereum's ABI encoder/decoder to translate between Go types
-// and the EVM's binary encoding (ABI encoding).
 const EquipmentRegistryABI = `[
   {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
     "inputs": [
-      {"internalType": "string",  "name": "assetId",         "type": "string"},
-      {"internalType": "string",  "name": "crn",             "type": "string"},
-      {"internalType": "string",  "name": "aNumber",         "type": "string"},
-      {"internalType": "string",  "name": "mdrHash",         "type": "string"},
-      {"internalType": "address", "name": "initialOperator", "type": "address"}
+      {"internalType": "string",  "name": "crn",     "type": "string"},
+      {"internalType": "bytes32", "name": "mdrHash", "type": "bytes32"},
+      {"internalType": "uint256", "name": "mawp",    "type": "uint256"}
     ],
     "name": "registerEquipment",
+    "outputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "signShopInspection",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
-      {"internalType": "string", "name": "assetId", "type": "string"},
-      {"internalType": "bool",   "name": "issued",  "type": "bool"}
+      {"internalType": "uint256", "name": "equipmentId", "type": "uint256"},
+      {"internalType": "string",  "name": "aNumber",     "type": "string"}
     ],
-    "name": "setCertificateIssued",
+    "name": "issueCertificate",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [
-      {"internalType": "string", "name": "assetId",   "type": "string"},
-      {"internalType": "bool",   "name": "compliant", "type": "bool"}
-    ],
-    "name": "setComplianceStatus",
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "activateEquipment",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "string", "name": "assetId", "type": "string"}],
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
     "name": "getEquipment",
     "outputs": [{
       "components": [
-        {"internalType": "string",  "name": "assetId",           "type": "string"},
-        {"internalType": "string",  "name": "crn",               "type": "string"},
-        {"internalType": "string",  "name": "aNumber",           "type": "string"},
-        {"internalType": "string",  "name": "mdrHash",           "type": "string"},
-        {"internalType": "address", "name": "currentOperator",   "type": "address"},
-        {"internalType": "bool",    "name": "certificateIssued", "type": "bool"},
-        {"internalType": "bool",    "name": "compliant",         "type": "bool"},
-        {"internalType": "bool",    "name": "exists",            "type": "bool"}
+        {"internalType": "uint256",  "name": "equipmentId",         "type": "uint256"},
+        {"internalType": "string",   "name": "crn",                 "type": "string"},
+        {"internalType": "string",   "name": "aNumber",             "type": "string"},
+        {"internalType": "bytes32",  "name": "mdrHash",             "type": "bytes32"},
+        {"internalType": "uint256",  "name": "mawp",                "type": "uint256"},
+        {"internalType": "address",  "name": "manufacturer",        "type": "address"},
+        {"internalType": "uint256",  "name": "registeredAt",        "type": "uint256"},
+        {"internalType": "address",  "name": "shopInspector",       "type": "address"},
+        {"internalType": "uint256",  "name": "shopInspectedAt",     "type": "uint256"},
+        {"internalType": "address",  "name": "certificateIssuer",   "type": "address"},
+        {"internalType": "uint256",  "name": "certificateIssuedAt", "type": "uint256"},
+        {"internalType": "uint8",    "name": "status",              "type": "uint8"}
       ],
       "internalType": "struct IEquipmentRegistry.Equipment",
       "name": "",
@@ -101,45 +109,51 @@ const EquipmentRegistryABI = `[
     }],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "isCertified",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "equipmentCount",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
   }
 ]`
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Binding structs (mirrors the abigen output pattern)
+// Binding structs
 // ──────────────────────────────────────────────────────────────────────────────
 
-// EquipmentRegistry is an auto-generated Go binding for the EquipmentRegistry contract.
-// It bundles a Caller (for read-only eth_call) and a Transactor (for state-changing txs).
 type EquipmentRegistry struct {
 	EquipmentRegistryCaller
 	EquipmentRegistryTransactor
 	EquipmentRegistryFilterer
 }
 
-// EquipmentRegistryCaller wraps the read-only contract methods.
 type EquipmentRegistryCaller struct {
 	contract *bind.BoundContract
 }
 
-// EquipmentRegistryTransactor wraps state-changing contract methods.
 type EquipmentRegistryTransactor struct {
 	contract *bind.BoundContract
 }
 
-// EquipmentRegistryFilterer is a placeholder for event log filtering (future use).
 type EquipmentRegistryFilterer struct {
 	contract *bind.BoundContract
 }
 
 // NewEquipmentRegistry creates a Go binding to the deployed contract at address.
-// backend must satisfy bind.ContractBackend (any *ethclient.Client does).
 func NewEquipmentRegistry(address common.Address, backend bind.ContractBackend) (*EquipmentRegistry, error) {
 	parsed, err := abi.JSON(strings.NewReader(EquipmentRegistryABI))
 	if err != nil {
 		return nil, err
 	}
-	// bind.NewBoundContract wires the ABI and backend together.  The same
-	// underlying *BoundContract is shared across Caller, Transactor, and Filterer.
 	contract := bind.NewBoundContract(address, parsed, backend, backend, backend)
 	return &EquipmentRegistry{
 		EquipmentRegistryCaller:     EquipmentRegistryCaller{contract: contract},
@@ -149,54 +163,69 @@ func NewEquipmentRegistry(address common.Address, backend bind.ContractBackend) 
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Transactor methods — send signed transactions to the network
+// Transactor methods
 // ──────────────────────────────────────────────────────────────────────────────
 
-// RegisterEquipment calls the registerEquipment(string,string,string,string,address)
-// function on the deployed contract.  auth must be built by SepoliaClient.GetAuthTransactor.
+// RegisterEquipment calls registerEquipment(string,bytes32,uint256).
+// mdrHash must be a 32-byte array, e.g. crypto.Keccak256Hash(doc).
 func (t *EquipmentRegistryTransactor) RegisterEquipment(
 	opts *bind.TransactOpts,
-	assetId, crn, aNumber, mdrHash string,
-	initialOperator common.Address,
+	crn string,
+	mdrHash [32]byte,
+	mawp *big.Int,
 ) (*types.Transaction, error) {
-	return t.contract.Transact(opts, "registerEquipment",
-		assetId, crn, aNumber, mdrHash, initialOperator)
+	return t.contract.Transact(opts, "registerEquipment", crn, mdrHash, mawp)
 }
 
-// SetCertificateIssued updates the certificateIssued flag for an asset.
-func (t *EquipmentRegistryTransactor) SetCertificateIssued(
+// SignShopInspection calls signShopInspection(uint256). Caller must hold SCO_ROLE.
+func (t *EquipmentRegistryTransactor) SignShopInspection(
 	opts *bind.TransactOpts,
-	assetId string,
-	issued bool,
+	equipmentId *big.Int,
 ) (*types.Transaction, error) {
-	return t.contract.Transact(opts, "setCertificateIssued", assetId, issued)
+	return t.contract.Transact(opts, "signShopInspection", equipmentId)
 }
 
-// SetComplianceStatus updates the compliance flag for an asset.
-func (t *EquipmentRegistryTransactor) SetComplianceStatus(
+// IssueCertificate calls issueCertificate(uint256,string). Caller must hold ABSA_ROLE.
+func (t *EquipmentRegistryTransactor) IssueCertificate(
 	opts *bind.TransactOpts,
-	assetId string,
-	compliant bool,
+	equipmentId *big.Int,
+	aNumber string,
 ) (*types.Transaction, error) {
-	return t.contract.Transact(opts, "setComplianceStatus", assetId, compliant)
+	return t.contract.Transact(opts, "issueCertificate", equipmentId, aNumber)
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Caller methods — free read-only eth_call, never costs gas
-// ──────────────────────────────────────────────────────────────────────────────
+// ActivateEquipment calls activateEquipment(uint256). Caller must hold ABSA_ROLE.
+func (t *EquipmentRegistryTransactor) ActivateEquipment(
+	opts *bind.TransactOpts,
+	equipmentId *big.Int,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "activateEquipment", equipmentId)
+}
 
-// GetEquipment calls the view function getEquipment(string) and unpacks the
-// returned Equipment tuple into an EquipmentData Go struct.
-func (c *EquipmentRegistryCaller) GetEquipment(opts *bind.CallOpts, assetId string) (EquipmentData, error) {
-	// Use an empty slice — BoundContract.Call replaces it with the decoded values.
-	// Pre-populating the slice (as one might expect) causes the decoder to fail
-	// because Call overwrites the slice pointer before unmarshalling.
+// GetEquipment calls getEquipment(uint256) and unpacks the Equipment tuple.
+func (c *EquipmentRegistryCaller) GetEquipment(opts *bind.CallOpts, equipmentId *big.Int) (EquipmentData, error) {
 	var out []interface{}
-	if err := c.contract.Call(opts, &out, "getEquipment", assetId); err != nil {
+	if err := c.contract.Call(opts, &out, "getEquipment", equipmentId); err != nil {
 		return EquipmentData{}, err
 	}
-	// abi.ConvertType maps the decoded anonymous struct (out[0]) onto EquipmentData
-	// by matching each field via its `abi:"..."` tag to the ABI component name.
 	result := abi.ConvertType(out[0], new(EquipmentData)).(*EquipmentData)
 	return *result, nil
+}
+
+// IsCertified calls isCertified(uint256). Returns true for Certified or Active status.
+func (c *EquipmentRegistryCaller) IsCertified(opts *bind.CallOpts, equipmentId *big.Int) (bool, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "isCertified", equipmentId); err != nil {
+		return false, err
+	}
+	return *abi.ConvertType(out[0], new(bool)).(*bool), nil
+}
+
+// EquipmentCount returns the current total number of registered equipment assets.
+func (c *EquipmentRegistryCaller) EquipmentCount(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "equipmentCount"); err != nil {
+		return nil, err
+	}
+	return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int), nil
 }

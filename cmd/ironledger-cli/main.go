@@ -1,11 +1,17 @@
-// main is the entry-point for the IronLedger command-line interface.
+﻿// main is the entry-point for the IronLedger command-line interface.
 //
 // Usage:
 //
-//	ironledger-cli register  <assetId> <crn> <aNumber> <mdrHash> <operatorAddress>
-//	ironledger-cli inspect   <assetId> <unixDate> <passed: true|false> <notes>
-//	ironledger-cli transfer  <assetId> <newOperatorAddress>
-//	ironledger-cli status    <assetId>
+//	ironledger-cli register      <crn> <mdrHashHex> <mawp>
+//	ironledger-cli shopinspect   <equipmentId>
+//	ironledger-cli certify        <equipmentId> <aNumber>
+//	ironledger-cli activate       <equipmentId>
+//	ironledger-cli loginspect     <equipmentId> <pass|fail> <notesHashHex>
+//	ironledger-cli custody        <equipmentId> <operatorAddress>
+//	ironledger-cli initxfer       <equipmentId> <toAddress>
+//	ironledger-cli completexfer   <equipmentId>
+//	ironledger-cli cancelxfer     <equipmentId>
+//	ironledger-cli status         <equipmentId>
 //
 // All wallet and network credentials are read from a .env file in the
 // working directory (see .env.example for the required keys).
@@ -13,11 +19,11 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -29,186 +35,290 @@ import (
 	"github.com/ahmedcod2/IronLedger/pkg/contracts"
 )
 
+var statusLabels = []string{"Registered", "ShopInspected", "Certified", "Active"}
+
 func main() {
-	// ── 1. Load .env ─────────────────────────────────────────────────────────
-	// godotenv reads a .env file from the current working directory and injects
-	// the key=value pairs into the process environment.  It is safe to call
-	// even when actual environment variables have already been set (e.g. in CI).
+	// -- 1. Load .env ---------------------------------------------------------
 	if err := godotenv.Load(); err != nil {
-		log.Fatalf("error: could not load .env file — %v\n"+
+		log.Fatalf("error: could not load .env file - %v\n"+
 			"Create one from .env.example and re-run the command.", err)
 	}
 
-	rpcURL      := mustEnv("SEPOLIA_RPC_URL")
-	privateKey  := mustEnv("PRIVATE_KEY")
+	rpcURL := mustEnv("SEPOLIA_RPC_URL")
+	privateKey := mustEnv("PRIVATE_KEY")
 	registryAddr := mustEnv("REGISTRY_CONTRACT_ADDRESS")
-	inspectAddr  := mustEnv("INSPECTION_CONTRACT_ADDRESS")
+	inspectAddr := mustEnv("INSPECTION_CONTRACT_ADDRESS")
 	transferAddr := mustEnv("TRANSFER_CONTRACT_ADDRESS")
 
-	// ── 2. Guard: require a sub-command ──────────────────────────────────────
+	// -- 2. Guard: require a sub-command --------------------------------------
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)
 	}
 	command := strings.ToLower(os.Args[1])
 
-	// ── 3. Connect to Sepolia ─────────────────────────────────────────────────
+	// -- 3. Connect to Sepolia -------------------------------------------------
 	sepoliaClient := client.NewSepoliaClient(rpcURL)
 	if err := sepoliaClient.Connect(); err != nil {
 		log.Fatalf("error: could not connect to Sepolia RPC: %v", err)
 	}
 	log.Println("Connected to Sepolia testnet.")
 
-	// ── 4. Build the authenticated transaction signer ─────────────────────────
-	// GetAuthTransactor fetches the on-chain nonce, chain ID, and gas price so
-	// every transaction is properly signed and replay-protected.
+	// -- 4. Build the authenticated transaction signer -------------------------
 	auth, err := sepoliaClient.GetAuthTransactor(privateKey)
 	if err != nil {
 		log.Fatalf("error: could not create transaction signer: %v", err)
 	}
 
-	// ── 5. Dispatch to the correct contract method ────────────────────────────
+	// -- 5. Dispatch -----------------------------------------------------------
 	switch command {
 
-	// ── register ─────────────────────────────────────────────────────────────
-	// Writes a new equipment asset record to EquipmentRegistry.sol.
-	// Args: <assetId> <crn> <aNumber> <mdrHash> <operatorAddress>
+	// -- register --------------------------------------------------------------
+	// Args: <crn> <mdrHashHex> <mawp>
 	case "register":
-		requireArgs(command, os.Args, 7)
+		requireArgs(command, os.Args, 5)
 
-		assetId   := os.Args[2]
-		crn       := os.Args[3]
-		aNumber   := os.Args[4]
-		mdrHash   := os.Args[5]
-		operator  := common.HexToAddress(os.Args[6])
+		crn := os.Args[2]
+		mdrHash := mustBytes32(os.Args[3])
+		mawp := mustBigInt(os.Args[4])
 
-		// Instantiate the Go binding that wraps the deployed EquipmentRegistry contract.
 		registry, err := contracts.NewEquipmentRegistry(
-			common.HexToAddress(registryAddr),
-			sepoliaClient.EthClient,
-		)
+			common.HexToAddress(registryAddr), sepoliaClient.EthClient)
 		if err != nil {
-			log.Fatalf("error: could not bind EquipmentRegistry contract: %v", err)
+			log.Fatalf("error: could not bind EquipmentRegistry: %v", err)
 		}
 
-		// Send the RegisterEquipment transaction.  auth carries the private-key
-		// signature; the node will broadcast it to the mempool.
-		tx, err := registry.RegisterEquipment(auth, assetId, crn, aNumber, mdrHash, operator)
+		tx, err := registry.RegisterEquipment(auth, crn, mdrHash, mawp)
 		if err != nil {
-			log.Fatalf("error: RegisterEquipment transaction failed: %v", err)
+			log.Fatalf("error: RegisterEquipment failed: %v", err)
 		}
-		log.Printf("RegisterEquipment submitted — tx hash: %s", tx.Hash().Hex())
-
-		// Block until the transaction is included in a mined block.
+		log.Printf("RegisterEquipment submitted - tx: %s", tx.Hash().Hex())
 		waitForReceipt(sepoliaClient, tx)
 
-	// ── inspect ───────────────────────────────────────────────────────────────
-	// Appends an inspection record to InspectionLog.sol.
-	// Args: <assetId> <unixTimestamp> <passed: true|false> <notes>
-	case "inspect":
-		requireArgs(command, os.Args, 6)
+	// -- shopinspect -----------------------------------------------------------
+	// Args: <equipmentId>
+	case "shopinspect":
+		requireArgs(command, os.Args, 3)
 
-		assetId      := os.Args[2]
-		unixDateStr  := os.Args[3]
-		passedStr    := strings.ToLower(os.Args[4])
-		notes        := os.Args[5]
+		id := mustBigInt(os.Args[2])
 
-		unixDate, err := strconv.ParseInt(unixDateStr, 10, 64)
+		registry, err := contracts.NewEquipmentRegistry(
+			common.HexToAddress(registryAddr), sepoliaClient.EthClient)
 		if err != nil {
-			log.Fatalf("error: <unixDate> must be a Unix timestamp integer, got %q", unixDateStr)
-		}
-		passed := passedStr == "true" || passedStr == "pass" || passedStr == "1"
-
-		// Instantiate the InspectionLog binding.
-		inspLog, err := contracts.NewInspectionLog(
-			common.HexToAddress(inspectAddr),
-			sepoliaClient.EthClient,
-		)
-		if err != nil {
-			log.Fatalf("error: could not bind InspectionLog contract: %v", err)
+			log.Fatalf("error: could not bind EquipmentRegistry: %v", err)
 		}
 
-		tx, err := inspLog.LogInspection(auth, assetId, big.NewInt(unixDate), passed, notes)
+		tx, err := registry.SignShopInspection(auth, id)
 		if err != nil {
-			log.Fatalf("error: LogInspection transaction failed: %v", err)
+			log.Fatalf("error: SignShopInspection failed: %v", err)
 		}
-		log.Printf("LogInspection submitted — tx hash: %s", tx.Hash().Hex())
+		log.Printf("SignShopInspection submitted - tx: %s", tx.Hash().Hex())
 		waitForReceipt(sepoliaClient, tx)
 
-	// ── transfer ──────────────────────────────────────────────────────────────
-	// Transfers custody of an asset via OwnershipTransfer.sol.
-	// Args: <assetId> <newOperatorAddress>
-	case "transfer":
+	// -- certify ---------------------------------------------------------------
+	// Args: <equipmentId> <aNumber>
+	case "certify":
 		requireArgs(command, os.Args, 4)
 
-		assetId      := os.Args[2]
-		newOperator  := common.HexToAddress(os.Args[3])
+		id := mustBigInt(os.Args[2])
+		aNumber := os.Args[3]
 
-		// Instantiate the OwnershipTransfer binding.
-		transfer, err := contracts.NewOwnershipTransfer(
-			common.HexToAddress(transferAddr),
-			sepoliaClient.EthClient,
-		)
+		registry, err := contracts.NewEquipmentRegistry(
+			common.HexToAddress(registryAddr), sepoliaClient.EthClient)
 		if err != nil {
-			log.Fatalf("error: could not bind OwnershipTransfer contract: %v", err)
+			log.Fatalf("error: could not bind EquipmentRegistry: %v", err)
 		}
 
-		// Optionally check eligibility before sending the transaction so we
-		// can give a clear error without wasting gas.
-		callOpts := &bind.CallOpts{Context: context.Background()}
-		eligible, err := transfer.CanTransfer(callOpts, assetId)
+		tx, err := registry.IssueCertificate(auth, id, aNumber)
 		if err != nil {
-			log.Fatalf("error: CanTransfer query failed: %v", err)
+			log.Fatalf("error: IssueCertificate failed: %v", err)
 		}
-		if !eligible {
-			log.Fatalf("error: asset %q is not eligible for transfer "+
-				"(certificate not issued or compliance flag is false)", assetId)
-		}
-
-		tx, err := transfer.TransferOwnership(auth, assetId, newOperator)
-		if err != nil {
-			log.Fatalf("error: TransferOwnership transaction failed: %v", err)
-		}
-		log.Printf("TransferOwnership submitted — tx hash: %s", tx.Hash().Hex())
+		log.Printf("IssueCertificate submitted - tx: %s", tx.Hash().Hex())
 		waitForReceipt(sepoliaClient, tx)
 
-	// ── status ────────────────────────────────────────────────────────────────
-	// Read-only query: prints the on-chain record for an asset.
-	// Args: <assetId>
+	// -- activate --------------------------------------------------------------
+	// Args: <equipmentId>
+	case "activate":
+		requireArgs(command, os.Args, 3)
+
+		id := mustBigInt(os.Args[2])
+
+		registry, err := contracts.NewEquipmentRegistry(
+			common.HexToAddress(registryAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind EquipmentRegistry: %v", err)
+		}
+
+		tx, err := registry.ActivateEquipment(auth, id)
+		if err != nil {
+			log.Fatalf("error: ActivateEquipment failed: %v", err)
+		}
+		log.Printf("ActivateEquipment submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- loginspect ------------------------------------------------------------
+	// Args: <equipmentId> <pass|fail> <notesHashHex>
+	case "loginspect":
+		requireArgs(command, os.Args, 5)
+
+		id := mustBigInt(os.Args[2])
+		resultArg := strings.ToLower(os.Args[3])
+		notesHash := mustBytes32(os.Args[4])
+
+		var result uint8 // 0 = Pass, 1 = Fail
+		if resultArg == "fail" {
+			result = 1
+		} else if resultArg != "pass" {
+			log.Fatalf("error: result must be \"pass\" or \"fail\", got %q", os.Args[3])
+		}
+
+		inspLog, err := contracts.NewInspectionLog(
+			common.HexToAddress(inspectAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind InspectionLog: %v", err)
+		}
+
+		tx, err := inspLog.LogInspection(auth, id, result, notesHash)
+		if err != nil {
+			log.Fatalf("error: LogInspection failed: %v", err)
+		}
+		log.Printf("LogInspection submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- custody ---------------------------------------------------------------
+	// Args: <equipmentId> <operatorAddress>
+	case "custody":
+		requireArgs(command, os.Args, 4)
+
+		id := mustBigInt(os.Args[2])
+		operator := common.HexToAddress(os.Args[3])
+
+		transfer, err := contracts.NewOwnershipTransfer(
+			common.HexToAddress(transferAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind OwnershipTransfer: %v", err)
+		}
+
+		tx, err := transfer.AssignInitialCustody(auth, id, operator)
+		if err != nil {
+			log.Fatalf("error: AssignInitialCustody failed: %v", err)
+		}
+		log.Printf("AssignInitialCustody submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- initxfer --------------------------------------------------------------
+	// Args: <equipmentId> <toAddress>
+	case "initxfer":
+		requireArgs(command, os.Args, 4)
+
+		id := mustBigInt(os.Args[2])
+		to := common.HexToAddress(os.Args[3])
+
+		transfer, err := contracts.NewOwnershipTransfer(
+			common.HexToAddress(transferAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind OwnershipTransfer: %v", err)
+		}
+
+		tx, err := transfer.InitiateTransfer(auth, id, to)
+		if err != nil {
+			log.Fatalf("error: InitiateTransfer failed: %v", err)
+		}
+		log.Printf("InitiateTransfer submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- completexfer ----------------------------------------------------------
+	// Args: <equipmentId>
+	case "completexfer":
+		requireArgs(command, os.Args, 3)
+
+		id := mustBigInt(os.Args[2])
+
+		transfer, err := contracts.NewOwnershipTransfer(
+			common.HexToAddress(transferAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind OwnershipTransfer: %v", err)
+		}
+
+		tx, err := transfer.CompleteTransfer(auth, id)
+		if err != nil {
+			log.Fatalf("error: CompleteTransfer failed: %v", err)
+		}
+		log.Printf("CompleteTransfer submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- cancelxfer ------------------------------------------------------------
+	// Args: <equipmentId>
+	case "cancelxfer":
+		requireArgs(command, os.Args, 3)
+
+		id := mustBigInt(os.Args[2])
+
+		transfer, err := contracts.NewOwnershipTransfer(
+			common.HexToAddress(transferAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind OwnershipTransfer: %v", err)
+		}
+
+		tx, err := transfer.CancelTransfer(auth, id)
+		if err != nil {
+			log.Fatalf("error: CancelTransfer failed: %v", err)
+		}
+		log.Printf("CancelTransfer submitted - tx: %s", tx.Hash().Hex())
+		waitForReceipt(sepoliaClient, tx)
+
+	// -- status ----------------------------------------------------------------
+	// Args: <equipmentId>
 	case "status":
 		requireArgs(command, os.Args, 3)
 
-		assetId := os.Args[2]
+		id := mustBigInt(os.Args[2])
 
 		registry, err := contracts.NewEquipmentRegistry(
-			common.HexToAddress(registryAddr),
-			sepoliaClient.EthClient,
-		)
+			common.HexToAddress(registryAddr), sepoliaClient.EthClient)
 		if err != nil {
-			log.Fatalf("error: could not bind EquipmentRegistry contract: %v", err)
+			log.Fatalf("error: could not bind EquipmentRegistry: %v", err)
+		}
+		transfer, err := contracts.NewOwnershipTransfer(
+			common.HexToAddress(transferAddr), sepoliaClient.EthClient)
+		if err != nil {
+			log.Fatalf("error: could not bind OwnershipTransfer: %v", err)
 		}
 
-		// CallOpts with no From address indicates a read-only eth_call — free, no gas.
 		callOpts := &bind.CallOpts{Context: context.Background()}
-		equipment, err := registry.GetEquipment(callOpts, assetId)
+
+		eq, err := registry.GetEquipment(callOpts, id)
 		if err != nil {
 			log.Fatalf("error: GetEquipment call failed: %v", err)
 		}
 
-		if !equipment.Exists {
-			fmt.Printf("Asset %q not found on-chain.\n", assetId)
-			return
+		statusStr := "Unknown"
+		if int(eq.Status) < len(statusLabels) {
+			statusStr = statusLabels[eq.Status]
 		}
 
-		fmt.Printf("\n── IronLedger Asset Status ─────────────────────────\n")
-		fmt.Printf("  Asset ID          : %s\n", equipment.AssetId)
-		fmt.Printf("  CRN               : %s\n", equipment.Crn)
-		fmt.Printf("  A-Number          : %s\n", equipment.ANumber)
-		fmt.Printf("  MDR Hash          : %s\n", equipment.MdrHash)
-		fmt.Printf("  Current Operator  : %s\n", equipment.CurrentOperator.Hex())
-		fmt.Printf("  Certificate Issued: %v\n", equipment.CertificateIssued)
-		fmt.Printf("  Compliant         : %v\n", equipment.Compliant)
-		fmt.Printf("────────────────────────────────────────────────────\n\n")
+		owner, err := transfer.GetCurrentOwner(callOpts, id)
+		if err != nil {
+			log.Fatalf("error: GetCurrentOwner call failed: %v", err)
+		}
+		pending, err := transfer.GetPendingTransfer(callOpts, id)
+		if err != nil {
+			log.Fatalf("error: GetPendingTransfer call failed: %v", err)
+		}
+
+		fmt.Printf("\n-- IronLedger Equipment Status ---------------------\n")
+		fmt.Printf("  Equipment ID       : %s\n", eq.EquipmentId.String())
+		fmt.Printf("  CRN                : %s\n", eq.Crn)
+		fmt.Printf("  A-Number           : %s\n", eq.ANumber)
+		fmt.Printf("  MDR Hash           : 0x%x\n", eq.MdrHash)
+		fmt.Printf("  MAWP               : %s\n", eq.Mawp.String())
+		fmt.Printf("  Status             : %s\n", statusStr)
+		fmt.Printf("  Registered At      : %s\n", eq.RegisteredAt.String())
+		fmt.Printf("  Shop Inspected At  : %s\n", eq.ShopInspectedAt.String())
+		fmt.Printf("  Certificate Issued : %s\n", eq.CertificateIssuedAt.String())
+		fmt.Printf("  Current Owner      : %s\n", owner.Hex())
+		fmt.Printf("  Pending Transfer To: %s\n", pending.Hex())
+		fmt.Printf("----------------------------------------------------\n\n")
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %q\n\n", command)
@@ -217,10 +327,8 @@ func main() {
 	}
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+// -- helpers -------------------------------------------------------------------
 
-// mustEnv reads an environment variable and terminates the process with a
-// descriptive error if the variable is empty or not set.
 func mustEnv(key string) string {
 	v := os.Getenv(key)
 	if v == "" {
@@ -230,7 +338,6 @@ func mustEnv(key string) string {
 	return v
 }
 
-// requireArgs asserts that len(args) >= required, printing usage and exiting if not.
 func requireArgs(cmd string, args []string, required int) {
 	if len(args) < required {
 		fmt.Fprintf(os.Stderr, "error: %q requires %d argument(s), got %d.\n\n",
@@ -240,54 +347,82 @@ func requireArgs(cmd string, args []string, required int) {
 	}
 }
 
-// waitForReceipt blocks until tx is included in a mined block or the context
-// is cancelled.  It prints the block number and gas consumed on success and
-// terminates the process with a descriptive message if the tx reverts.
-func waitForReceipt(c *client.SepoliaClient, tx *types.Transaction) {
-	log.Printf("Waiting for transaction %s to be mined…", tx.Hash().Hex())
+// mustBigInt parses a decimal uint256 string and terminates on failure.
+func mustBigInt(s string) *big.Int {
+	n, ok := new(big.Int).SetString(s, 10)
+	if !ok {
+		log.Fatalf("error: expected a decimal integer, got %q", s)
+	}
+	return n
+}
 
-	// bind.WaitMined polls eth_getTransactionReceipt until the node returns a
-	// non-nil receipt, meaning the transaction has been included in a block.
+// mustBytes32 decodes a 0x-prefixed or bare 64-char hex string into [32]byte.
+func mustBytes32(s string) [32]byte {
+	s = strings.TrimPrefix(s, "0x")
+	b, err := hex.DecodeString(s)
+	if err != nil || len(b) != 32 {
+		log.Fatalf("error: expected a 32-byte hex string (64 hex chars), got %q", s)
+	}
+	var out [32]byte
+	copy(out[:], b)
+	return out
+}
+
+// waitForReceipt blocks until tx is mined, then prints the result.
+func waitForReceipt(c *client.SepoliaClient, tx *types.Transaction) {
+	log.Printf("Waiting for transaction %s to be mined...", tx.Hash().Hex())
 	receipt, err := bind.WaitMined(context.Background(), c.EthClient, tx)
 	if err != nil {
-		log.Fatalf("error waiting for receipt: %v", err)
+		log.Fatalf("error: waiting for receipt failed: %v", err)
 	}
-
-	// Status 1 == success; 0 == reverted on-chain.
-	if receipt.Status == 0 {
-		log.Fatalf("error: transaction %s was reverted on-chain. "+
-			"Check contract logic and gas limit.", tx.Hash().Hex())
+	if receipt.Status == types.ReceiptStatusFailed {
+		log.Fatalf("error: transaction reverted (block %d)", receipt.BlockNumber.Uint64())
 	}
-
-	log.Printf("Transaction mined successfully in block %d (gas used: %d).",
-		receipt.BlockNumber.Uint64(), receipt.GasUsed)
+	log.Printf("Mined in block %d - gas used: %d", receipt.BlockNumber.Uint64(), receipt.GasUsed)
 }
 
 func printUsage() {
-	fmt.Print(`IronLedger CLI — blockchain-based pressure equipment provenance
+	fmt.Print(`IronLedger CLI - blockchain-based pressure equipment provenance
 
 Usage:
   ironledger-cli <command> [arguments]
 
 Commands:
-  register  <assetId> <crn> <aNumber> <mdrHash> <operatorAddress>
-              Register a new piece of pressure equipment on-chain.
+  register    <crn> <mdrHashHex> <mawp>
+                Register new equipment on-chain. Returns uint256 equipmentId.
 
-  inspect   <assetId> <unixTimestamp> <passed: true|false> <notes>
-              Log an inspection outcome for an asset.
+  shopinspect <equipmentId>
+                SCO sign-off on shop inspection.
 
-  transfer  <assetId> <newOperatorAddress>
-              Transfer custody to a new operator (must be eligible).
+  certify     <equipmentId> <aNumber>
+                ABSA issue certificate and set A-Number.
 
-  status    <assetId>
-              Read and print the on-chain record for an asset (free call).
+  activate    <equipmentId>
+                Activate certified equipment for field use.
+
+  loginspect  <equipmentId> <pass|fail> <notesHashHex>
+                Log an inspection outcome.
+
+  custody     <equipmentId> <operatorAddress>
+                Assign initial custody (ABSA only).
+
+  initxfer    <equipmentId> <toAddress>
+                Initiate a two-step custody transfer.
+
+  completexfer <equipmentId>
+                Current custodian confirms off-chain handover is complete.
+
+  cancelxfer  <equipmentId>
+                Cancel a pending transfer.
+
+  status      <equipmentId>
+                Read and print the on-chain record (free call).
 
 Environment (set in .env):
   SEPOLIA_RPC_URL              Alchemy or Infura HTTPS/WSS endpoint
   PRIVATE_KEY                  Hex-encoded private key (no 0x prefix)
-  REGISTRY_CONTRACT_ADDRESS    Deployed EquipmentRegistry  address
-  INSPECTION_CONTRACT_ADDRESS  Deployed InspectionLog      address
-  TRANSFER_CONTRACT_ADDRESS    Deployed OwnershipTransfer  address
+  REGISTRY_CONTRACT_ADDRESS    Deployed EquipmentRegistry address
+  INSPECTION_CONTRACT_ADDRESS  Deployed InspectionLog     address
+  TRANSFER_CONTRACT_ADDRESS    Deployed OwnershipTransfer address
 `)
 }
-

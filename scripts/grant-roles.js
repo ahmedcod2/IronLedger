@@ -34,25 +34,36 @@ async function main() {
     "OwnershipTransfer", process.env.TRANSFER_CONTRACT_ADDRESS
   );
 
-  // Manufacturer can register new equipment
+  // ── EquipmentRegistry roles ───────────────────────────────────────────────
   console.log("Granting MANUFACTURER_ROLE on EquipmentRegistry...");
   await (await registry.grantRole(MANUFACTURER_ROLE, grantTo)).wait();
   console.log("  ✔ MANUFACTURER_ROLE granted");
 
-  // ABSA can issue certificates and flip the compliance flag
+  console.log("Granting SCO_ROLE on EquipmentRegistry...");
+  await (await registry.grantRole(SCO_ROLE, grantTo)).wait();
+  console.log("  ✔ SCO_ROLE granted");
+
   console.log("Granting ABSA_ROLE on EquipmentRegistry...");
   await (await registry.grantRole(ABSA_ROLE, grantTo)).wait();
   console.log("  ✔ ABSA_ROLE granted");
 
-  // SCO can log inspection results
+  // ── InspectionLog roles ───────────────────────────────────────────────────
   console.log("Granting SCO_ROLE on InspectionLog...");
   await (await inspectionLog.grantRole(SCO_ROLE, grantTo)).wait();
   console.log("  ✔ SCO_ROLE granted");
 
-  // Operator can kick off a custody transfer
+  console.log("Granting ABSA_ROLE on InspectionLog...");
+  await (await inspectionLog.grantRole(ABSA_ROLE, grantTo)).wait();
+  console.log("  ✔ ABSA_ROLE granted");
+
+  // ── OwnershipTransfer roles ───────────────────────────────────────────────
   console.log("Granting OPERATOR_ROLE on OwnershipTransfer...");
   await (await ownershipTransfer.grantRole(OPERATOR_ROLE, grantTo)).wait();
   console.log("  ✔ OPERATOR_ROLE granted");
+
+  console.log("Granting ABSA_ROLE on OwnershipTransfer...");
+  await (await ownershipTransfer.grantRole(ABSA_ROLE, grantTo)).wait();
+  console.log("  ✔ ABSA_ROLE granted");
 
   console.log("\nAll roles granted. You're good to go with:", grantTo);
 }

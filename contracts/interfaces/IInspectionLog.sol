@@ -2,29 +2,30 @@
 pragma solidity ^0.8.24;
 
 /// @title IInspectionLog
-/// @notice Interface for storing inspection events and associated compliance outcomes.
+/// @notice Interface for storing inspection history and managing equipment compliance status.
 interface IInspectionLog {
+    enum Result { Pass, Fail }
+
     struct InspectionRecord {
-        uint256 inspectionDate;
+        uint256 inspectionId;
         address inspector;
-        bool passed;
-        string notes;
+        uint256 inspectedAt;
+        Result result;
+        bytes32 notesHash;
     }
 
     /// @notice Appends a new inspection record for an equipment asset.
-    function logInspection(
-        string calldata assetId,
-        uint256 inspectionDate,
-        bool passed,
-        string calldata notes
-    ) external;
+    function logInspection(uint256 equipmentId, Result result, bytes32 notesHash) external;
 
-    /// @notice Returns the number of inspection records stored for an asset.
-    function getInspectionCount(string calldata assetId) external view returns (uint256);
+    /// @notice Marks equipment non-compliant if its last inspection is overdue.
+    function checkOverdue(uint256 equipmentId) external;
 
-    /// @notice Returns an inspection record at a given index.
-    function getInspectionRecord(string calldata assetId, uint256 index)
-        external
-        view
-        returns (InspectionRecord memory);
+    /// @notice Updates the global inspection interval used for overdue checks.
+    function setInspectionInterval(uint256 intervalSeconds) external;
+
+    /// @notice Returns whether an equipment asset is currently compliant.
+    function isCompliant(uint256 equipmentId) external view returns (bool);
+
+    /// @notice Returns the full inspection history for an equipment asset.
+    function getInspectionHistory(uint256 equipmentId) external view returns (InspectionRecord[] memory);
 }

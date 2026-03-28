@@ -6,47 +6,95 @@ import "./IInspectionLog.sol";
 import "../libraries/Roles.sol";
 
 /// @title InspectionLog
-/// @notice Smart contract for storing inspection history and pass/fail outcomes.
-/// @dev Role-based access is enforced via OpenZeppelin AccessControl. A future iteration
-///      can emit events and automatically push compliance updates to EquipmentRegistry.
+/// @notice Records inspection events and tracks compliance status for pressure equipment.
+/// @dev Compliance is set automatically based on pass/fail outcomes. The ABSA role can
+///      trigger overdue checks to revoke compliance when the inspection interval is exceeded.
 contract InspectionLog is IInspectionLog, AccessControl {
-    mapping(string => InspectionRecord[]) private inspectionsByAsset;
+    mapping(uint256 => InspectionRecord[]) public inspections;
+    mapping(uint256 => uint256) public lastInspectedAt;
+    mapping(uint256 => bool) public complianceFlag;
+    uint256 public inspectionInterval;
 
-    /// @notice Grants DEFAULT_ADMIN_ROLE to the deployer so they can assign roles post-deploy.
-    constructor() {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    // ─── Role Modifiers ──────────────────────────────────────────────────────
+
+    modifier onlySCO() {
+        require(hasRole(Roles.SCO_ROLE, msg.sender), "InspectionLog: caller is not a SCO");
+        _;
     }
 
-    /// @notice Adds a new inspection record for a specific asset.
-    /// @dev Caller must hold SCO_ROLE. Future logic can notify registry contracts of outcomes.
+    modifier onlyABSA() {
+        require(hasRole(Roles.ABSA_ROLE, msg.sender), "InspectionLog: caller is not an ABSA inspector");
+        _;
+    }
+
+    // ─── Constructor ─────────────────────────────────────────────────────────
+
+    /// @param absa Address to be granted ABSA_ROLE on deployment.
+    /// @param intervalSeconds Initial inspection interval in seconds.
+    constructor(
+        address absa,
+        address /* equipmentRegistry — reserved for future cross-contract validation */,
+        uint256 intervalSeconds
+    ) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(Roles.ABSA_ROLE, absa);
+        inspectionInterval = intervalSeconds;
+    }
+
+    // ─── State-Changing Functions ─────────────────────────────────────────────
+
+    /// @inheritdoc IInspectionLog
     function logInspection(
-        string calldata assetId,
-        uint256 inspectionDate,
-        bool passed,
-        string calldata notes
-    ) external override onlyRole(Roles.SCO_ROLE) {
-        inspectionsByAsset[assetId].push(
+        uint256 equipmentId,
+        Result result,
+        bytes32 notesHash
+    ) external override onlySCO {
+        uint256 inspectionId = inspections[equipmentId].length + 1;
+
+        inspections[equipmentId].push(
             InspectionRecord({
-                inspectionDate: inspectionDate,
+                inspectionId: inspectionId,
                 inspector: msg.sender,
-                passed: passed,
-                notes: notes
+                inspectedAt: block.timestamp,
+                result: result,
+                notesHash: notesHash
             })
         );
+
+        lastInspectedAt[equipmentId] = block.timestamp;
+        complianceFlag[equipmentId] = (result == Result.Pass);
     }
 
-    /// @notice Returns the number of inspections recorded for a given asset.
-    function getInspectionCount(string calldata assetId) external view override returns (uint256) {
-        return inspectionsByAsset[assetId].length;
+    /// @inheritdoc IInspectionLog
+    /// @dev Sets complianceFlag to false if the last inspection is older than inspectionInterval.
+    function checkOverdue(uint256 equipmentId) external override onlyABSA {
+        if (
+            inspectionInterval > 0 &&
+            block.timestamp > lastInspectedAt[equipmentId] + inspectionInterval
+        ) {
+            complianceFlag[equipmentId] = false;
+        }
     }
 
-    /// @notice Returns a single inspection record by index for audit or UI purposes.
-    function getInspectionRecord(string calldata assetId, uint256 index)
+    /// @inheritdoc IInspectionLog
+    function setInspectionInterval(uint256 intervalSeconds) external override onlyABSA {
+        inspectionInterval = intervalSeconds;
+    }
+
+    // ─── View Functions ───────────────────────────────────────────────────────
+
+    /// @inheritdoc IInspectionLog
+    function isCompliant(uint256 equipmentId) external view override returns (bool) {
+        return complianceFlag[equipmentId];
+    }
+
+    /// @inheritdoc IInspectionLog
+    function getInspectionHistory(uint256 equipmentId)
         external
         view
         override
-        returns (InspectionRecord memory)
+        returns (InspectionRecord[] memory)
     {
-        return inspectionsByAsset[assetId][index];
+        return inspections[equipmentId];
     }
 }

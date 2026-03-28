@@ -6,61 +6,116 @@ import "./interfaces/IEquipmentRegistry.sol";
 import "./libraries/Roles.sol";
 
 /// @title EquipmentRegistry
-/// @notice Smart contract for regulated equipment registration and lifecycle state.
-/// @dev Role-based access is enforced via OpenZeppelin AccessControl. Role constants
-///      are imported from Roles.sol to ensure hash consistency across the system.
+/// @notice Smart contract for regulated pressure equipment registration and lifecycle management.
+/// @dev Role-based access is enforced via OpenZeppelin AccessControl. Role constants are
+///      imported from Roles.sol to guarantee hash consistency across the system.
 contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
-    mapping(string => Equipment) private equipmentById;
+    mapping(uint256 => Equipment) public equipment;
+    uint256 public equipmentCount;
 
-    /// @notice Grants DEFAULT_ADMIN_ROLE to the deployer so they can assign roles post-deploy.
+    // ─── Role Modifiers ──────────────────────────────────────────────────────
+
+    modifier onlyManufacturer() {
+        require(hasRole(Roles.MANUFACTURER_ROLE, msg.sender), "EquipmentRegistry: caller is not a manufacturer");
+        _;
+    }
+
+    modifier onlySCO() {
+        require(hasRole(Roles.SCO_ROLE, msg.sender), "EquipmentRegistry: caller is not a SCO");
+        _;
+    }
+
+    modifier onlyABSA() {
+        require(hasRole(Roles.ABSA_ROLE, msg.sender), "EquipmentRegistry: caller is not an ABSA inspector");
+        _;
+    }
+
+    // ─── Constructor ─────────────────────────────────────────────────────────
+
+    /// @notice Grants DEFAULT_ADMIN_ROLE to the deployer so roles can be assigned post-deploy.
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Registers a new equipment asset with core metadata and operator ownership.
-    /// @dev Caller must hold MANUFACTURER_ROLE.
+    // ─── State-Changing Functions ─────────────────────────────────────────────
+
+    /// @inheritdoc IEquipmentRegistry
+    /// @dev Auto-increments equipmentCount and uses it as the new ID.
     function registerEquipment(
-        string calldata assetId,
         string calldata crn,
-        string calldata aNumber,
-        string calldata mdrHash,
-        address initialOperator
-    ) external override onlyRole(Roles.MANUFACTURER_ROLE) {
-        equipmentById[assetId] = Equipment({
-            assetId: assetId,
+        bytes32 mdrHash,
+        uint256 mawp
+    ) external override onlyManufacturer returns (uint256 equipmentId) {
+        equipmentCount++;
+        equipmentId = equipmentCount;
+
+        equipment[equipmentId] = Equipment({
+            equipmentId: equipmentId,
             crn: crn,
-            aNumber: aNumber,
+            aNumber: "",
             mdrHash: mdrHash,
-            currentOperator: initialOperator,
-            certificateIssued: false,
-            compliant: false,
-            exists: true
+            mawp: mawp,
+            manufacturer: msg.sender,
+            registeredAt: block.timestamp,
+            shopInspector: address(0),
+            shopInspectedAt: 0,
+            certificateIssuer: address(0),
+            certificateIssuedAt: 0,
+            status: Status.Registered
         });
     }
 
-    /// @notice Updates commissioning certificate status for a registered asset.
-    /// @dev Caller must hold ABSA_ROLE.
-    function setCertificateIssued(string calldata assetId, bool issued)
-        external
-        override
-        onlyRole(Roles.ABSA_ROLE)
-    {
-        equipmentById[assetId].certificateIssued = issued;
+    /// @inheritdoc IEquipmentRegistry
+    function signShopInspection(uint256 equipmentId) external override onlySCO {
+        Equipment storage eq = equipment[equipmentId];
+        require(eq.equipmentId != 0, "EquipmentRegistry: equipment does not exist");
+        require(eq.status == Status.Registered, "EquipmentRegistry: equipment is not in Registered state");
+
+        eq.shopInspector = msg.sender;
+        eq.shopInspectedAt = block.timestamp;
+        eq.status = Status.ShopInspected;
     }
 
-    /// @notice Updates the compliance flag used by transfer and reporting workflows.
-    /// @dev Caller must hold ABSA_ROLE. A future iteration should restrict this to a
-    ///      trusted InspectionLog contract address so compliance is set automatically.
-    function setComplianceStatus(string calldata assetId, bool compliant)
+    /// @inheritdoc IEquipmentRegistry
+    function issueCertificate(uint256 equipmentId, string calldata aNumber)
         external
         override
-        onlyRole(Roles.ABSA_ROLE)
+        onlyABSA
     {
-        equipmentById[assetId].compliant = compliant;
+        Equipment storage eq = equipment[equipmentId];
+        require(eq.equipmentId != 0, "EquipmentRegistry: equipment does not exist");
+        require(eq.status == Status.ShopInspected, "EquipmentRegistry: equipment has not been shop inspected");
+
+        eq.aNumber = aNumber;
+        eq.certificateIssuer = msg.sender;
+        eq.certificateIssuedAt = block.timestamp;
+        eq.status = Status.Certified;
     }
 
-    /// @notice Returns the full equipment record for read-only consumers such as auditors or UI clients.
-    function getEquipment(string calldata assetId) external view override returns (Equipment memory) {
-        return equipmentById[assetId];
+    /// @inheritdoc IEquipmentRegistry
+    function activateEquipment(uint256 equipmentId) external override onlyABSA {
+        Equipment storage eq = equipment[equipmentId];
+        require(eq.equipmentId != 0, "EquipmentRegistry: equipment does not exist");
+        require(eq.status == Status.Certified, "EquipmentRegistry: equipment has not been certified");
+
+        eq.status = Status.Active;
+    }
+
+    // ─── View Functions ───────────────────────────────────────────────────────
+
+    /// @inheritdoc IEquipmentRegistry
+    function getEquipment(uint256 equipmentId)
+        external
+        view
+        override
+        returns (Equipment memory)
+    {
+        return equipment[equipmentId];
+    }
+
+    /// @inheritdoc IEquipmentRegistry
+    function isCertified(uint256 equipmentId) external view override returns (bool) {
+        Status s = equipment[equipmentId].status;
+        return s == Status.Certified || s == Status.Active;
     }
 }

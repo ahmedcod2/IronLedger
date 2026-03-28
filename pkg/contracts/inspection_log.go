@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// Suppress unused-import errors.
 var (
 	_ = big.NewInt
 	_ = strings.NewReader
@@ -28,22 +27,31 @@ var (
 )
 
 // InspectionRecord mirrors the InspectionRecord struct in IInspectionLog.sol.
-// The `abi` tags must exactly match the Solidity component names.
+// Result enum values: 0=Pass, 1=Fail.
 type InspectionRecord struct {
-	InspectionDate *big.Int       `abi:"inspectionDate"`
-	Inspector      common.Address `abi:"inspector"`
-	Passed         bool           `abi:"passed"`
-	Notes          string         `abi:"notes"`
+	InspectionId *big.Int       `abi:"inspectionId"`
+	Inspector    common.Address `abi:"inspector"`
+	InspectedAt  *big.Int       `abi:"inspectedAt"`
+	Result       uint8          `abi:"result"`
+	NotesHash    [32]byte       `abi:"notesHash"`
 }
 
 // InspectionLogABI is the JSON ABI of the deployed InspectionLog contract.
 const InspectionLogABI = `[
   {
     "inputs": [
-      {"internalType": "string",  "name": "assetId",        "type": "string"},
-      {"internalType": "uint256", "name": "inspectionDate", "type": "uint256"},
-      {"internalType": "bool",    "name": "passed",         "type": "bool"},
-      {"internalType": "string",  "name": "notes",          "type": "string"}
+      {"internalType": "address", "name": "absa",            "type": "address"},
+      {"internalType": "address", "name": "",                "type": "address"},
+      {"internalType": "uint256", "name": "intervalSeconds", "type": "uint256"}
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {"internalType": "uint256", "name": "equipmentId", "type": "uint256"},
+      {"internalType": "uint8",   "name": "result",      "type": "uint8"},
+      {"internalType": "bytes32", "name": "notesHash",   "type": "bytes32"}
     ],
     "name": "logInspection",
     "outputs": [],
@@ -51,29 +59,62 @@ const InspectionLogABI = `[
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "string", "name": "assetId", "type": "string"}],
-    "name": "getInspectionCount",
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "checkOverdue",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "intervalSeconds", "type": "uint256"}],
+    "name": "setInspectionInterval",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "isCompliant",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "getInspectionHistory",
+    "outputs": [{
+      "components": [
+        {"internalType": "uint256", "name": "inspectionId", "type": "uint256"},
+        {"internalType": "address", "name": "inspector",    "type": "address"},
+        {"internalType": "uint256", "name": "inspectedAt",  "type": "uint256"},
+        {"internalType": "uint8",   "name": "result",       "type": "uint8"},
+        {"internalType": "bytes32", "name": "notesHash",    "type": "bytes32"}
+      ],
+      "internalType": "struct IInspectionLog.InspectionRecord[]",
+      "name": "",
+      "type": "tuple[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "inspectionInterval",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [
-      {"internalType": "string",  "name": "assetId", "type": "string"},
-      {"internalType": "uint256", "name": "index",   "type": "uint256"}
-    ],
-    "name": "getInspectionRecord",
-    "outputs": [{
-      "components": [
-        {"internalType": "uint256", "name": "inspectionDate", "type": "uint256"},
-        {"internalType": "address", "name": "inspector",      "type": "address"},
-        {"internalType": "bool",    "name": "passed",         "type": "bool"},
-        {"internalType": "string",  "name": "notes",          "type": "string"}
-      ],
-      "internalType": "struct IInspectionLog.InspectionRecord",
-      "name": "",
-      "type": "tuple"
-    }],
+    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "name": "lastInspectedAt",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "name": "complianceFlag",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
     "stateMutability": "view",
     "type": "function"
   }
@@ -83,24 +124,20 @@ const InspectionLogABI = `[
 // Binding structs
 // ──────────────────────────────────────────────────────────────────────────────
 
-// InspectionLog is the auto-generated Go binding for the InspectionLog contract.
 type InspectionLog struct {
 	InspectionLogCaller
 	InspectionLogTransactor
 	InspectionLogFilterer
 }
 
-// InspectionLogCaller wraps the read-only methods.
 type InspectionLogCaller struct {
 	contract *bind.BoundContract
 }
 
-// InspectionLogTransactor wraps the state-changing methods.
 type InspectionLogTransactor struct {
 	contract *bind.BoundContract
 }
 
-// InspectionLogFilterer is a placeholder for event subscriptions.
 type InspectionLogFilterer struct {
 	contract *bind.BoundContract
 }
@@ -123,42 +160,75 @@ func NewInspectionLog(address common.Address, backend bind.ContractBackend) (*In
 // Transactor methods
 // ──────────────────────────────────────────────────────────────────────────────
 
-// LogInspection sends a logInspection transaction to append an inspection record.
-// inspectionDate should be a Unix timestamp (use time.Now().Unix()).
+// LogInspection sends a logInspection(uint256,uint8,bytes32) transaction.
+// result: 0=Pass, 1=Fail. notesHash: keccak256 of the off-chain notes document.
 func (t *InspectionLogTransactor) LogInspection(
 	opts *bind.TransactOpts,
-	assetId string,
-	inspectionDate *big.Int,
-	passed bool,
-	notes string,
+	equipmentId *big.Int,
+	result uint8,
+	notesHash [32]byte,
 ) (*types.Transaction, error) {
-	return t.contract.Transact(opts, "logInspection", assetId, inspectionDate, passed, notes)
+	return t.contract.Transact(opts, "logInspection", equipmentId, result, notesHash)
+}
+
+// CheckOverdue sends a checkOverdue(uint256) transaction. Caller must hold ABSA_ROLE.
+func (t *InspectionLogTransactor) CheckOverdue(
+	opts *bind.TransactOpts,
+	equipmentId *big.Int,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "checkOverdue", equipmentId)
+}
+
+// SetInspectionInterval sends a setInspectionInterval(uint256) transaction.
+// Caller must hold ABSA_ROLE.
+func (t *InspectionLogTransactor) SetInspectionInterval(
+	opts *bind.TransactOpts,
+	intervalSeconds *big.Int,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "setInspectionInterval", intervalSeconds)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Caller methods
 // ──────────────────────────────────────────────────────────────────────────────
 
-// GetInspectionCount returns the total number of inspection records for assetId.
-func (c *InspectionLogCaller) GetInspectionCount(opts *bind.CallOpts, assetId string) (*big.Int, error) {
+// IsCompliant calls isCompliant(uint256). Returns the live compliance flag.
+func (c *InspectionLogCaller) IsCompliant(opts *bind.CallOpts, equipmentId *big.Int) (bool, error) {
 	var out []interface{}
-	if err := c.contract.Call(opts, &out, "getInspectionCount", assetId); err != nil {
+	if err := c.contract.Call(opts, &out, "isCompliant", equipmentId); err != nil {
+		return false, err
+	}
+	return *abi.ConvertType(out[0], new(bool)).(*bool), nil
+}
+
+// GetInspectionHistory calls getInspectionHistory(uint256) and decodes the
+// returned tuple[] into a []InspectionRecord slice.
+func (c *InspectionLogCaller) GetInspectionHistory(
+	opts *bind.CallOpts,
+	equipmentId *big.Int,
+) ([]InspectionRecord, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "getInspectionHistory", equipmentId); err != nil {
 		return nil, err
 	}
-	// The ABI decoder puts the uint256 result at index 0 as a *big.Int.
+	result := abi.ConvertType(out[0], new([]InspectionRecord)).(*[]InspectionRecord)
+	return *result, nil
+}
+
+// InspectionInterval returns the current global inspection interval in seconds.
+func (c *InspectionLogCaller) InspectionInterval(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "inspectionInterval"); err != nil {
+		return nil, err
+	}
 	return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int), nil
 }
 
-// GetInspectionRecord returns a single inspection record by index.
-func (c *InspectionLogCaller) GetInspectionRecord(
-	opts *bind.CallOpts,
-	assetId string,
-	index *big.Int,
-) (InspectionRecord, error) {
+// LastInspectedAt returns the timestamp of the most recent inspection for an asset.
+func (c *InspectionLogCaller) LastInspectedAt(opts *bind.CallOpts, equipmentId *big.Int) (*big.Int, error) {
 	var out []interface{}
-	if err := c.contract.Call(opts, &out, "getInspectionRecord", assetId, index); err != nil {
-		return InspectionRecord{}, err
+	if err := c.contract.Call(opts, &out, "lastInspectedAt", equipmentId); err != nil {
+		return nil, err
 	}
-	result := abi.ConvertType(out[0], new(InspectionRecord)).(*InspectionRecord)
-	return *result, nil
+	return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int), nil
 }
