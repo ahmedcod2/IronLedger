@@ -1,22 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./IInspectionLog.sol";
+import "../libraries/Roles.sol";
 
 /// @title InspectionLog
-/// @notice Draft smart contract for storing inspection history and pass/fail outcomes.
-/// @dev A later iteration can integrate access control and automatic compliance updates.
-contract InspectionLog is IInspectionLog {
+/// @notice Smart contract for storing inspection history and pass/fail outcomes.
+/// @dev Role-based access is enforced via OpenZeppelin AccessControl. A future iteration
+///      can emit events and automatically push compliance updates to EquipmentRegistry.
+contract InspectionLog is IInspectionLog, AccessControl {
     mapping(string => InspectionRecord[]) private inspectionsByAsset;
 
+    /// @notice Grants DEFAULT_ADMIN_ROLE to the deployer so they can assign roles post-deploy.
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
     /// @notice Adds a new inspection record for a specific asset.
-    /// @dev Future logic can emit events and notify registry contracts of pass/fail outcomes.
+    /// @dev Caller must hold SCO_ROLE. Future logic can notify registry contracts of outcomes.
     function logInspection(
         string calldata assetId,
         uint256 inspectionDate,
         bool passed,
         string calldata notes
-    ) external override {
+    ) external override onlyRole(Roles.SCO_ROLE) {
         inspectionsByAsset[assetId].push(
             InspectionRecord({
                 inspectionDate: inspectionDate,

@@ -1,23 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IEquipmentRegistry.sol";
+import "./libraries/Roles.sol";
 
 /// @title EquipmentRegistry
-/// @notice Draft smart contract for regulated equipment registration and lifecycle state.
-/// @dev This milestone focuses on structure and comments rather than full production logic.
-contract EquipmentRegistry is IEquipmentRegistry {
+/// @notice Smart contract for regulated equipment registration and lifecycle state.
+/// @dev Role-based access is enforced via OpenZeppelin AccessControl. Role constants
+///      are imported from Roles.sol to ensure hash consistency across the system.
+contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
     mapping(string => Equipment) private equipmentById;
 
+    /// @notice Grants DEFAULT_ADMIN_ROLE to the deployer so they can assign roles post-deploy.
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
     /// @notice Registers a new equipment asset with core metadata and operator ownership.
-    /// @dev Future versions should enforce role-based access control and duplicate checks.
+    /// @dev Caller must hold MANUFACTURER_ROLE.
     function registerEquipment(
         string calldata assetId,
         string calldata crn,
         string calldata aNumber,
         string calldata mdrHash,
         address initialOperator
-    ) external override {
+    ) external override onlyRole(Roles.MANUFACTURER_ROLE) {
         equipmentById[assetId] = Equipment({
             assetId: assetId,
             crn: crn,
@@ -31,12 +39,23 @@ contract EquipmentRegistry is IEquipmentRegistry {
     }
 
     /// @notice Updates commissioning certificate status for a registered asset.
-    function setCertificateIssued(string calldata assetId, bool issued) external override {
+    /// @dev Caller must hold ABSA_ROLE.
+    function setCertificateIssued(string calldata assetId, bool issued)
+        external
+        override
+        onlyRole(Roles.ABSA_ROLE)
+    {
         equipmentById[assetId].certificateIssued = issued;
     }
 
     /// @notice Updates the compliance flag used by transfer and reporting workflows.
-    function setComplianceStatus(string calldata assetId, bool compliant) external override {
+    /// @dev Caller must hold ABSA_ROLE. A future iteration should restrict this to a
+    ///      trusted InspectionLog contract address so compliance is set automatically.
+    function setComplianceStatus(string calldata assetId, bool compliant)
+        external
+        override
+        onlyRole(Roles.ABSA_ROLE)
+    {
         equipmentById[assetId].compliant = compliant;
     }
 
