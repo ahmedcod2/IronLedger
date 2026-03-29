@@ -48,12 +48,12 @@ IronLedger/
 │   └── ownership_transfer.go         ← Go ABI binding for OwnershipTransfer
 ├── contracts/
 │   ├── EquipmentRegistry.sol
+│   ├── InspectionLog.sol
 │   ├── OwnershipTransfer.sol
 │   └── interfaces/
 │       ├── IEquipmentRegistry.sol
 │       ├── IInspectionLog.sol
 │       ├── IOwnershipTransfer.sol
-│       └── InspectionLog.sol
 ├── scripts/deploy.js                 ← Hardhat deployment (all 3 contracts)
 ├── docs/
 │   ├── architecture.md

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "./IInspectionLog.sol";
+import "./interfaces/IInspectionLog.sol";
 
 /// @title InspectionLog
 /// @notice Draft smart contract for storing inspection history and pass/fail outcomes.
