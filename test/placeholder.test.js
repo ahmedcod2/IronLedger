@@ -58,10 +58,8 @@ async function deploySystem() {
 
 // Helper: register one piece of equipment and return its uint256 id
 async function registerOne(registry, manufacturer, mdrHash) {
-  const tx = await registry.connect(manufacturer).registerEquipment("CRN-001", mdrHash, 1000n);
-  const receipt = await tx.wait();
-  // equipmentCount is incremented before emitting; return 1 for the first equipment
-  return 1n;
+  await registry.connect(manufacturer).registerEquipment("CRN-001", mdrHash, 1000n);
+  return await registry.equipmentCount();
 }
 
 // ── EquipmentRegistry tests ───────────────────────────────────────────────────
@@ -195,6 +193,7 @@ describe("InspectionLog", function () {
     await inspLog.connect(sco).logInspection(1n, 0, notesHash);
     const history = await inspLog.getInspectionHistory(1n);
     expect(history.length).to.equal(1);
+    expect(history[0].inspectionId).to.equal(1n);
     expect(history[0].result).to.equal(0); // Pass
     expect(history[0].notesHash).to.equal(notesHash);
   });
@@ -298,12 +297,15 @@ describe("OwnershipTransfer", function () {
     await inspLog.connect(sco).logInspection(1n, 0, notesHash);
     await transfer.connect(absa).assignInitialCustody(1n, operator.address);
     const hist1 = await transfer.getTransferHistory(1n);
-    expect(hist1.length).to.equal(1); // initial custody record
+    expect(hist1.length).to.equal(1);
+    expect(hist1[0].from).to.equal(ethers.ZeroAddress);
+    expect(hist1[0].to).to.equal(operator.address);
 
     await transfer.connect(operator).initiateTransfer(1n, operator2.address);
     await transfer.connect(operator).completeTransfer(1n);
     const hist2 = await transfer.getTransferHistory(1n);
     expect(hist2.length).to.equal(2);
+    expect(hist2[1].from).to.equal(operator.address);
     expect(hist2[1].to).to.equal(operator2.address);
   });
 

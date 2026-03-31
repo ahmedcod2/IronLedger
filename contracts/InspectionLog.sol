@@ -97,4 +97,16 @@ contract InspectionLog is IInspectionLog, AccessControl {
     {
         return inspections[equipmentId];
     }
+
+    /// @inheritdoc IInspectionLog
+    function getLastInspection(uint256 equipmentId)
+        external
+        view
+        override
+        returns (InspectionRecord memory)
+    {
+        uint256 len = inspections[equipmentId].length;
+        require(len > 0, "InspectionLog: no inspections recorded for this asset");
+        return inspections[equipmentId][len - 1];
+    }
 }

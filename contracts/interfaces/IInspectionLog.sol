@@ -28,4 +28,8 @@ interface IInspectionLog {
 
     /// @notice Returns the full inspection history for an equipment asset.
     function getInspectionHistory(uint256 equipmentId) external view returns (InspectionRecord[] memory);
+
+    /// @notice Returns the most recent inspection record for an equipment asset.
+    /// @dev Reverts if no inspections have been recorded for the asset.
+    function getLastInspection(uint256 equipmentId) external view returns (InspectionRecord memory);
 }

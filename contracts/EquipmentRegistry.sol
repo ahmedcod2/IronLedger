@@ -63,6 +63,8 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
             certificateIssuedAt: 0,
             status: Status.Registered
         });
+
+        emit EquipmentRegistered(equipmentId, msg.sender, crn);
     }
 
     /// @inheritdoc IEquipmentRegistry
@@ -110,6 +112,7 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
         override
         returns (Equipment memory)
     {
+        require(equipment[equipmentId].equipmentId != 0, "EquipmentRegistry: equipment does not exist");
         return equipment[equipmentId];
     }
 

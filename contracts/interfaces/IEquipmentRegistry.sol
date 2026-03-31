@@ -40,4 +40,7 @@ interface IEquipmentRegistry {
 
     /// @notice Returns true if the equipment is in Certified or Active state.
     function isCertified(uint256 equipmentId) external view returns (bool);
+
+    /// @notice Emitted when a new equipment asset is registered.
+    event EquipmentRegistered(uint256 indexed equipmentId, address indexed manufacturer, string crn);
 }

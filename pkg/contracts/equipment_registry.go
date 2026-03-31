@@ -5,6 +5,7 @@
 package contracts
 
 import (
+	"errors"
 	"math/big"
 	"strings"
 
@@ -123,6 +124,16 @@ const EquipmentRegistryABI = `[
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true,  "internalType": "uint256", "name": "equipmentId",  "type": "uint256"},
+      {"indexed": true,  "internalType": "address", "name": "manufacturer", "type": "address"},
+      {"indexed": false, "internalType": "string",  "name": "crn",          "type": "string"}
+    ],
+    "name": "EquipmentRegistered",
+    "type": "event"
   }
 ]`
 
@@ -228,4 +239,22 @@ func (c *EquipmentRegistryCaller) EquipmentCount(opts *bind.CallOpts) (*big.Int,
 		return nil, err
 	}
 	return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int), nil
+}
+
+// EquipmentIdFromReceipt parses the EquipmentRegistered event from a transaction
+// receipt and returns the newly assigned equipment ID.
+// Returns an error if the event is not found in the receipt logs.
+func EquipmentIdFromReceipt(receipt *types.Receipt) (*big.Int, error) {
+	parsed, err := abi.JSON(strings.NewReader(EquipmentRegistryABI))
+	if err != nil {
+		return nil, err
+	}
+	event := parsed.Events["EquipmentRegistered"]
+	for _, log := range receipt.Logs {
+		if len(log.Topics) > 0 && log.Topics[0] == event.ID {
+			// equipmentId is the first indexed topic (Topics[1])
+			return log.Topics[1].Big(), nil
+		}
+	}
+	return nil, errors.New("EquipmentRegistered event not found in receipt")
 }

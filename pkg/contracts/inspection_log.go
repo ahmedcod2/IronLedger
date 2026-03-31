@@ -117,6 +117,24 @@ const InspectionLogABI = `[
     "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "getLastInspection",
+    "outputs": [{
+      "components": [
+        {"internalType": "uint256", "name": "inspectionId", "type": "uint256"},
+        {"internalType": "address", "name": "inspector",    "type": "address"},
+        {"internalType": "uint256", "name": "inspectedAt",  "type": "uint256"},
+        {"internalType": "uint8",   "name": "result",       "type": "uint8"},
+        {"internalType": "bytes32", "name": "notesHash",    "type": "bytes32"}
+      ],
+      "internalType": "struct IInspectionLog.InspectionRecord",
+      "name": "",
+      "type": "tuple"
+    }],
+    "stateMutability": "view",
+    "type": "function"
   }
 ]`
 
@@ -231,4 +249,18 @@ func (c *InspectionLogCaller) LastInspectedAt(opts *bind.CallOpts, equipmentId *
 		return nil, err
 	}
 	return *abi.ConvertType(out[0], new(*big.Int)).(**big.Int), nil
+}
+
+// GetLastInspection calls getLastInspection(uint256) and returns the most recent
+// InspectionRecord for the asset. Reverts on-chain if no inspections exist.
+func (c *InspectionLogCaller) GetLastInspection(
+	opts *bind.CallOpts,
+	equipmentId *big.Int,
+) (InspectionRecord, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "getLastInspection", equipmentId); err != nil {
+		return InspectionRecord{}, err
+	}
+	result := abi.ConvertType(out[0], new(InspectionRecord)).(*InspectionRecord)
+	return *result, nil
 }

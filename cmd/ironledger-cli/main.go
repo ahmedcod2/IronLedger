@@ -93,7 +93,12 @@ func main() {
 			log.Fatalf("error: RegisterEquipment failed: %v", err)
 		}
 		log.Printf("RegisterEquipment submitted - tx: %s", tx.Hash().Hex())
-		waitForReceipt(sepoliaClient, tx)
+		receipt := waitForReceipt(sepoliaClient, tx)
+		equipmentId, err := contracts.EquipmentIdFromReceipt(receipt)
+		if err != nil {
+			log.Fatalf("error: could not parse equipment ID from receipt: %v", err)
+		}
+		log.Printf("Equipment registered successfully — ID: %s (use this ID for all subsequent commands)", equipmentId.String())
 
 	// -- shopinspect -----------------------------------------------------------
 	// Args: <equipmentId>
@@ -368,8 +373,8 @@ func mustBytes32(s string) [32]byte {
 	return out
 }
 
-// waitForReceipt blocks until tx is mined, then prints the result.
-func waitForReceipt(c *client.SepoliaClient, tx *types.Transaction) {
+// waitForReceipt blocks until tx is mined, prints the result, and returns the receipt.
+func waitForReceipt(c *client.SepoliaClient, tx *types.Transaction) *types.Receipt {
 	log.Printf("Waiting for transaction %s to be mined...", tx.Hash().Hex())
 	receipt, err := bind.WaitMined(context.Background(), c.EthClient, tx)
 	if err != nil {
@@ -379,6 +384,7 @@ func waitForReceipt(c *client.SepoliaClient, tx *types.Transaction) {
 		log.Fatalf("error: transaction reverted (block %d)", receipt.BlockNumber.Uint64())
 	}
 	log.Printf("Mined in block %d - gas used: %d", receipt.BlockNumber.Uint64(), receipt.GasUsed)
+	return receipt
 }
 
 func printUsage() {

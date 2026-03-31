@@ -199,9 +199,11 @@ This grants `MANUFACTURER_ROLE`, `SCO_ROLE`, `ABSA_ROLE`, and `OPERATOR_ROLE` on
 ```powershell
 # 1. Register a new pressure vessel (Manufacturer)
 #    mdrHashHex = keccak256 of the MDR document (64 hex chars, no 0x), mawp in kPa
+#    The CLI prints the assigned equipment ID after the transaction mines
 .\bin\ironledger-cli.exe register CRN-2024-99 4e16e0a60bcf45c8867d36abc5840fa5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6 10000
+# Output: Equipment registered successfully — ID: 1 (use this ID for all subsequent commands)
 
-# 2. SCO signs off on shop inspection (equipmentId = 1 after first register)
+# 2. SCO signs off on shop inspection
 .\bin\ironledger-cli.exe shopinspect 1
 
 # 3. ABSA issues certificate with A-number
@@ -233,9 +235,12 @@ Connected to Sepolia testnet.
 RegisterEquipment submitted - tx: 0x54061d...
 Waiting for transaction 0x54061d... to be mined...
 Mined in block 10536889 - gas used: 187624
+Equipment registered successfully — ID: 1 (use this ID for all subsequent commands)
 ```
 
-`status` is a free `eth_call` - instant, no gas, no wallet needed.
+The `register` command additionally parses the `EquipmentRegistered` event from the receipt and prints the assigned on-chain equipment ID. All subsequent commands (`shopinspect`, `certify`, `activate`, `loginspect`, `custody`, `initxfer`) take this ID as their first argument.
+
+`status` is a free `eth_call` — instant, no gas, no wallet needed.
 
 ---
 
