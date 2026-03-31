@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./IInspectionLog.sol";
-import "../libraries/Roles.sol";
+import "./interfaces/IInspectionLog.sol";
+import "./libraries/Roles.sol";
 
 /// @title InspectionLog
 /// @notice Records inspection events and tracks compliance status for pressure equipment.

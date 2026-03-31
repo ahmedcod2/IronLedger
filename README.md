@@ -71,17 +71,19 @@ IronLedger/
 │   └── ownership_transfer.go         <- Go ABI binding for OwnershipTransfer
 ├── contracts/
 │   ├── EquipmentRegistry.sol
+│   ├── InspectionLog.sol
 │   ├── OwnershipTransfer.sol
 │   ├── interfaces/
 │   │   ├── IEquipmentRegistry.sol
 │   │   ├── IInspectionLog.sol
-│   │   ├── IOwnershipTransfer.sol
-│   │   └── InspectionLog.sol
+│   │   └── IOwnershipTransfer.sol
 │   └── libraries/
 │       └── Roles.sol                 <- Shared RBAC role constants
 ├── scripts/
 │   ├── deploy.js                     <- Deploys all 3 contracts to Sepolia
 │   └── grant-roles.js                <- Grants all roles to deployer wallet
+├── docs/
+│   └── architecture.md
 ├── test/
 │   └── placeholder.test.js           <- Hardhat test suite (31 tests)
 ├── .env.example                      <- Credential template
