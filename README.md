@@ -198,8 +198,8 @@ This grants `MANUFACTURER_ROLE`, `SCO_ROLE`, `ABSA_ROLE`, and `OPERATOR_ROLE` on
 
 ```powershell
 # 1. Register a new pressure vessel (Manufacturer)
-#    mdrHashHex = keccak256 of the MDR document, mawp in kPa
-.\bin\ironledger-cli.exe register CRN-2024-99 0x4e16e0a60bcf45c8867d36abc5840fa5000000000000000000000000000000ab 10000
+#    mdrHashHex = keccak256 of the MDR document (64 hex chars, no 0x), mawp in kPa
+.\bin\ironledger-cli.exe register CRN-2024-99 4e16e0a60bcf45c8867d36abc5840fa5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6 10000
 
 # 2. SCO signs off on shop inspection (equipmentId = 1 after first register)
 .\bin\ironledger-cli.exe shopinspect 1
@@ -211,7 +211,8 @@ This grants `MANUFACTURER_ROLE`, `SCO_ROLE`, `ABSA_ROLE`, and `OPERATOR_ROLE` on
 .\bin\ironledger-cli.exe activate 1
 
 # 5. Log a passing inspection (SCO)
-.\bin\ironledger-cli.exe loginspect 1 pass 0xaabbcc...
+#    notesHashHex = keccak256 of off-chain inspection notes (64 hex chars, no 0x)
+.\bin\ironledger-cli.exe loginspect 1 pass aabbccdd11223344aabbccdd11223344aabbccdd11223344aabbccdd11223344
 
 # 6. ABSA assigns initial custody to an operator
 .\bin\ironledger-cli.exe custody 1 0xOperatorAddress
