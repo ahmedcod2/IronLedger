@@ -83,7 +83,17 @@ IronLedger/
 │   ├── deploy.js                     <- Deploys all 3 contracts to Sepolia
 │   └── grant-roles.js                <- Grants all roles to deployer wallet
 ├── docs/
-│   └── architecture.md
+│   ├── architecture
+│   │   ├── architecture.md
+│   │   ├── IronLedger_Process_Flow.docx
+│   │   └── IronLedger_System_Architecture.pdf
+│   ├── smart-contracts
+│   │   ├── IronLedger_Function_Signatures.xlsx
+│   │   └── IronLedger_State_Variables_and_Event_Schemas.xlsx 
+│   └── ui
+│       ├── IronLedger_Integration_Diagram.html
+│       ├── IronLedger_Roles_Permissions.xlsx
+│       └── IronLedger_UI_Mockup.html
 ├── test/
 │   └── placeholder.test.js           <- Hardhat test suite (31 tests)
 ├── .env.example                      <- Credential template
