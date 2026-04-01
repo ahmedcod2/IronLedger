@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>IronLedger — Integration & Events Diagram</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: white; padding: 24px; }
+
+h1 { font-size: 16px; font-weight: bold; color: #0C447C; margin-bottom: 4px; }
+.subtitle { font-size: 11px; color: #888; margin-bottom: 24px; }
+
+/* ── LEGEND ── */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 10px 14px; background: #f5f7fb;
+  border: 1px solid #dde3ed; border-radius: 8px;
+  margin-bottom: 24px; font-size: 11px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.leg-line { width: 28px; height: 3px; border-radius: 2px; }
+.leg-dot  { width: 12px; height: 12px; border-radius: 50%; }
+
+/* ── MAIN GRID ── */
+.diagram {
+  display: grid;
+  grid-template-columns: 200px 1fr 220px 1fr 200px;
+  grid-template-rows: auto;
+  gap: 0;
+  align-items: start;
+}
+
+/* ── LAYER HEADERS ── */
+.layer-hdr {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: white; padding: 6px 10px;
+  border-radius: 6px 6px 0 0; text-align: center;
+}
+.col-ui    { background: #3C3489; }
+.col-web3  { background: #085041; }
+.col-sc    { background: #0C447C; }
+.col-ev    { background: #633806; }
+.col-prov  { background: #5F5E5A; }
+
+/* ── ACTOR BLOCKS ── */
+.actor-col {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 8px;
+}
+
+.actor-block {
+  border-radius: 8px; border: 1px solid; padding: 10px 12px;
+}
+.actor-title { font-size: 12px; font-weight: bold; margin-bottom: 6px; }
+.actor-item  { font-size: 11px; color: #444; padding: 3px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+.actor-item:last-child { border-bottom: none; }
+.actor-item .fn { font-family: monospace; font-size: 10.5px; color: #185FA5; }
+.actor-item .ev { font-family: monospace; font-size: 10.5px; color: #854F0B; }
+.actor-item .tx { font-size: 10px; color: #888; }
+
+/* Actor colour themes */
+.a-mfg    { background: #FAECE7; border-color: #F0997B; }
+.a-mfg    .actor-title { color: #712B13; }
+.a-sco    { background: #FAEEDA; border-color: #EF9F27; }
+.a-sco    .actor-title { color: #633806; }
+.a-absa   { background: #E1F5EE; border-color: #5DCAA5; }
+.a-absa   .actor-title { color: #085041; }
+.a-op     { background: #EEEDFE; border-color: #AFA9EC; }
+.a-op     .actor-title { color: #3C3489; }
+.a-aud    { background: #E6F1FB; border-color: #85B7EB; }
+.a-aud    .actor-title { color: #0C447C; }
+
+/* ── CONTRACT COLUMN ── */
+.contract-col {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 12px 8px;
+}
+.contract-block {
+  border-radius: 8px; border: 2px solid #185FA5;
+  background: #E6F1FB; overflow: hidden;
+}
+.contract-hdr {
+  background: #185FA5; color: white; padding: 7px 12px;
+  font-size: 12px; font-weight: bold;
+}
+.contract-rbac {
+  background: #EEEDFE; padding: 5px 12px;
+  font-size: 10px; color: #3C3489; font-weight: 600;
+  border-bottom: 1px solid #AFA9EC;
+}
+.fn-list { padding: 8px 12px; }
+.fn-row {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 0; border-bottom: 1px solid rgba(24,95,165,0.1);
+  font-size: 11px;
+}
+.fn-row:last-child { border-bottom: none; }
+.fn-name { font-family: monospace; font-size: 10.5px; color: #0C447C; flex: 1; }
+.fn-mod  { font-size: 9px; background: #EEEDFE; color: #3C3489; padding: 1px 5px; border-radius: 99px; white-space: nowrap; }
+.fn-view { font-size: 9px; background: #EAF3DE; color: #27500A; padding: 1px 5px; border-radius: 99px; white-space: nowrap; }
+.fn-free { font-size: 9px; background: #F1EFE8; color: #5F5E5A; padding: 1px 5px; border-radius: 99px; white-space: nowrap; }
+
+/* ── EVENTS COLUMN ── */
+.events-col {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 8px;
+}
+.event-block {
+  border-radius: 8px; border: 1px solid #EF9F27;
+  background: #FAEEDA; padding: 10px 12px;
+}
+.event-title { font-size: 11px; font-weight: bold; color: #633806; margin-bottom: 6px; }
+.event-item  { font-size: 10.5px; color: #444; padding: 2px 0; }
+.event-item .ename { font-family: monospace; color: #854F0B; }
+.event-item .esrc  { font-size: 9.5px; color: #888; }
+
+/* ── WEB3 COLUMN ── */
+.web3-col {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 8px;
+}
+.web3-block {
+  border-radius: 8px; border: 1px solid #5DCAA5;
+  background: #E1F5EE; padding: 10px 12px;
+}
+.web3-title { font-size: 11px; font-weight: bold; color: #085041; margin-bottom: 6px; }
+.web3-item  { font-size: 10.5px; color: #333; padding: 2px 0; }
+.web3-item .wfn { font-family: monospace; font-size: 10px; color: #085041; }
+.web3-item .wscreen { font-size: 9.5px; color: #888; }
+
+/* ── PROVENANCE COLUMN ── */
+.prov-col {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 8px;
+}
+.prov-block {
+  border-radius: 8px; border: 1px solid #B4B2A9;
+  background: #F1EFE8; padding: 10px 12px;
+}
+.prov-title { font-size: 11px; font-weight: bold; color: #444441; margin-bottom: 6px; }
+.prov-item  { font-size: 10.5px; color: #555; padding: 2px 0; }
+
+/* ── CROSS-CONTRACT CALL CALLOUT ── */
+.xc-callout {
+  margin: 0 8px 16px; padding: 10px 14px;
+  background: #FCEBEB; border: 1px solid #F09595;
+  border-radius: 8px; font-size: 11px; color: #791F1F;
+}
+.xc-callout strong { display: block; margin-bottom: 4px; font-size: 12px; }
+.xc-item { padding: 2px 0; font-family: monospace; font-size: 10.5px; }
+
+/* ── SPACER ── */
+.spacer { height: 16px; }
+
+/* ── FOOTER NOTE ── */
+.footer-note {
+  margin-top: 24px; padding: 10px 14px;
+  background: #FFFDE7; border: 1px solid #F9A825;
+  border-radius: 8px; font-size: 11px; color: #555; line-height: 1.7;
+}
+.footer-note strong { color: #333; }
+
+/* ── DEPLOY ORDER ── */
+.deploy-order {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 16px; padding: 10px 14px;
+  background: #E6F1FB; border: 1px solid #85B7EB;
+  border-radius: 8px; font-size: 12px; color: #0C447C; flex-wrap: wrap;
+}
+.deploy-step {
+  background: #185FA5; color: white; padding: 4px 12px;
+  border-radius: 99px; font-size: 11px; font-weight: bold;
+}
+.deploy-arrow { color: #185FA5; font-size: 16px; }
+
+</style>
+</head>
+<body>
+
+<h1>IronLedger — Integration &amp; Events Diagram</h1>
+<p class="subtitle">What needs to be developed and hooked into &nbsp;·&nbsp; Web3.js SPA + Bootstrap &nbsp;·&nbsp; Ethereum Sepolia</p>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="leg-dot" style="background:#3C3489"></div> UI screen (Bootstrap)</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#085041"></div> Web3.js call</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#0C447C"></div> Smart contract function</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#854F0B"></div> Emitted event</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#5F5E5A"></div> Provenance ledger read</div>
+  <div class="legend-item"><div class="leg-dot" style="background:#FCEBEB;border:1px solid #F09595"></div> Cross-contract call (on-chain)</div>
+  <div class="legend-item"><span style="font-family:monospace;font-size:10px;background:#EEEDFE;color:#3C3489;padding:2px 6px;border-radius:99px">onlyRole</span> &nbsp;RBAC modifier</div>
+  <div class="legend-item"><span style="font-family:monospace;font-size:10px;background:#EAF3DE;color:#27500A;padding:2px 6px;border-radius:99px">view</span> &nbsp;Free read (no gas)</div>
+</div>
+
+<!-- ── COLUMN HEADERS ── -->
+<div style="display:grid;grid-template-columns:200px 220px 1fr 200px 180px;gap:0;margin-bottom:0">
+  <div class="layer-hdr col-ui">UI Screens<br><span style="font-weight:normal;font-size:10px">Bootstrap SPA</span></div>
+  <div class="layer-hdr col-web3" style="margin-left:4px">Web3.js Hooks<br><span style="font-weight:normal;font-size:10px">MetaMask + eth_call / sendTransaction</span></div>
+  <div class="layer-hdr col-sc" style="margin-left:4px">Smart Contracts<br><span style="font-weight:normal;font-size:10px">Solidity 0.8.24 · Sepolia</span></div>
+  <div class="layer-hdr col-ev" style="margin-left:4px">Emitted Events<br><span style="font-weight:normal;font-size:10px">On-chain log</span></div>
+  <div class="layer-hdr col-prov" style="margin-left:4px">Provenance Reads<br><span style="font-weight:normal;font-size:10px">getPastEvents()</span></div>
+</div>
+
+<!-- ── MAIN CONTENT: 5 actor rows ── -->
+<div style="display:grid;grid-template-columns:200px 220px 1fr 200px 180px;gap:0">
+
+  <!-- ════ MANUFACTURER ROW ════════════════════════════════════════ -->
+  <div style="padding:8px 4px 0 0">
+    <div class="actor-block a-mfg">
+      <div class="actor-title">Manufacturer</div>
+      <div class="actor-item">Screen 2: Register Equipment</div>
+      <div class="actor-item"><span class="fn">registerEquipment()</span></div>
+      <div class="actor-item"><span class="tx">Wallet: MANUFACTURER_ROLE required</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="web3-block">
+      <div class="web3-title">Web3.js — Register</div>
+      <div class="web3-item"><span class="wfn">contract.methods.registerEquipment(crn, mdrHash, mawp).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 2 form submit · gas ~120k</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">web3.eth.accounts.sign()</span></div>
+      <div class="web3-item"><span class="wscreen">MetaMask prompt · EIP-155 tx signing</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="contract-block">
+      <div class="contract-hdr">EquipmentRegistry.sol</div>
+      <div class="contract-rbac">RBAC: MANUFACTURER_ROLE · SCO_ROLE · ABSA_ROLE</div>
+      <div class="fn-list">
+        <div class="fn-row"><span class="fn-name">registerEquipment(crn, mdrHash, mawp)</span><span class="fn-mod">onlyManufacturer</span></div>
+        <div class="fn-row"><span class="fn-name">signShopInspection(assetId)</span><span class="fn-mod">onlySCO</span></div>
+        <div class="fn-row"><span class="fn-name">issueCertificate(assetId, aNumber)</span><span class="fn-mod">onlyABSA</span></div>
+        <div class="fn-row"><span class="fn-name">activateEquipment(assetId)</span><span class="fn-mod">onlyABSA</span></div>
+        <div class="fn-row"><span class="fn-name">getEquipment(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">isCertified(assetId)</span><span class="fn-view">view</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="event-block">
+      <div class="event-title">EquipmentRegistry Events</div>
+      <div class="event-item"><span class="ename">EquipmentRegistered</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, manufacturer</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">ShopInspectionSigned</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, inspector</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">CertificateIssued</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId · carries aNumber, issuedAt</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0 0 4px">
+    <div class="prov-block">
+      <div class="prov-title">Dashboard + Detail</div>
+      <div class="prov-item">getPastEvents("EquipmentRegistered")</div>
+      <div class="prov-item">getPastEvents("CertificateIssued")</div>
+      <div class="prov-item">filter by assetId</div>
+    </div>
+  </div>
+
+  <!-- ════ SCO ROW ═════════════════════════════════════════════════ -->
+  <div style="padding:8px 4px 0 0">
+    <div class="actor-block a-sco">
+      <div class="actor-title">Safety Codes Officer</div>
+      <div class="actor-item">Screen 3: Inspection Log</div>
+      <div class="actor-item"><span class="fn">logInspection()</span></div>
+      <div class="actor-item">Screen 2: Shop sign-off</div>
+      <div class="actor-item"><span class="fn">signShopInspection()</span></div>
+      <div class="actor-item"><span class="tx">Wallet: SCO_ROLE required</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="web3-block">
+      <div class="web3-title">Web3.js — Inspect</div>
+      <div class="web3-item"><span class="wfn">inspectionLog.methods.logInspection(assetId, result, notesHash).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 3 submit · gas ~80k</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">inspectionLog.methods.getInspectionCount(assetId).call()</span></div>
+      <div class="web3-item"><span class="wfn">inspectionLog.methods.getInspectionRecord(assetId, i).call()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 3 history table · free eth_call</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="contract-block">
+      <div class="contract-hdr">InspectionLog.sol</div>
+      <div class="contract-rbac">RBAC: SCO_ROLE · ABSA_ROLE</div>
+      <div class="fn-list">
+        <div class="fn-row"><span class="fn-name">logInspection(assetId, result, notesHash)</span><span class="fn-mod">onlySCO</span></div>
+        <div class="fn-row"><span class="fn-name">checkOverdue(assetId)</span><span class="fn-mod">onlyABSA</span></div>
+        <div class="fn-row"><span class="fn-name">setInspectionInterval(seconds)</span><span class="fn-mod">onlyABSA</span></div>
+        <div class="fn-row"><span class="fn-name">isCompliant(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">getInspectionCount(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">getInspectionRecord(assetId, i)</span><span class="fn-view">view</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="event-block">
+      <div class="event-title">InspectionLog Events</div>
+      <div class="event-item"><span class="ename">InspectionLogged</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, inspector · result, notesHash</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">ComplianceFlagSet</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId · reason: "FAIL" or "OVERDUE"</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">ComplianceFlagCleared</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, inspector</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0 0 4px">
+    <div class="prov-block">
+      <div class="prov-title">Dashboard + Detail</div>
+      <div class="prov-item">getPastEvents("InspectionLogged")</div>
+      <div class="prov-item">getPastEvents("ComplianceFlagSet")</div>
+      <div class="prov-item">getPastEvents("ComplianceFlagCleared")</div>
+      <div class="prov-item">filter by assetId · sort by block</div>
+    </div>
+  </div>
+
+  <!-- ════ ABSA ROW ════════════════════════════════════════════════ -->
+  <div style="padding:8px 4px 0 0">
+    <div class="actor-block a-absa">
+      <div class="actor-title">ABSA</div>
+      <div class="actor-item">Screen 4: Issue Certificate</div>
+      <div class="actor-item"><span class="fn">issueCertificate()</span></div>
+      <div class="actor-item">Screen 1: checkOverdue()</div>
+      <div class="actor-item">Screen 1: grantRole()</div>
+      <div class="actor-item"><span class="tx">Wallet: ABSA_ROLE (deployer)</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="web3-block">
+      <div class="web3-title">Web3.js — ABSA Admin</div>
+      <div class="web3-item"><span class="wfn">registry.methods.issueCertificate(assetId, aNumber).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 4 · gas ~60k</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">registry.methods.grantRole(ROLE_HASH, address).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Admin panel · role assignment</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">inspectionLog.methods.checkOverdue(assetId).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Dashboard flag trigger · gas ~40k</span></div>
+    </div>
+  </div>
+
+  <!-- contract col spans already rendered above — spacer row -->
+  <div style="padding:8px 4px 0">
+    <div style="background:#f0f4fa;border-radius:8px;border:1px dashed #ccd3de;padding:12px;font-size:11px;color:#888">
+      EquipmentRegistry.sol and InspectionLog.sol both serve ABSA write calls (above). OwnershipTransfer.sol is below.
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="event-block">
+      <div class="event-title">AccessControl Events (OZ)</div>
+      <div class="event-item"><span class="ename">RoleGranted</span></div>
+      <div class="event-item"><span class="esrc">role, account, sender</span></div>
+      <div class="event-item" style="margin-top:4px"><span class="ename">RoleRevoked</span></div>
+      <div class="event-item"><span class="esrc">role, account, sender</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0 0 4px">
+    <div class="prov-block">
+      <div class="prov-title">Admin View</div>
+      <div class="prov-item">getPastEvents("RoleGranted")</div>
+      <div class="prov-item">show credentialed actors</div>
+      <div class="prov-item">verify ABSA address on connect</div>
+    </div>
+  </div>
+
+  <!-- ════ OPERATOR ROW ════════════════════════════════════════════ -->
+  <div style="padding:8px 4px 0 0">
+    <div class="actor-block a-op">
+      <div class="actor-title">Operator</div>
+      <div class="actor-item">Screen 5: Ownership Transfer</div>
+      <div class="actor-item"><span class="fn">initiateTransfer()</span></div>
+      <div class="actor-item"><span class="fn">completeTransfer()</span></div>
+      <div class="actor-item"><span class="fn">cancelTransfer()</span></div>
+      <div class="actor-item"><span class="tx">Wallet: OPERATOR_ROLE required</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="web3-block">
+      <div class="web3-title">Web3.js — Transfer</div>
+      <div class="web3-item"><span class="wfn">transfer.methods.initiateTransfer(assetId, toAddr).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 5 step 1 · gas ~50k</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">transfer.methods.completeTransfer(assetId).send()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 5 step 2 · triggers isCompliant() cross-call · gas ~80k</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">transfer.methods.canTransfer(assetId).call()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 5 gate display · free eth_call</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wfn">transfer.methods.getTransferHistory(assetId).call()</span></div>
+      <div class="web3-item"><span class="wscreen">Screen 5 history table · free eth_call</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="contract-block">
+      <div class="contract-hdr">OwnershipTransfer.sol</div>
+      <div class="contract-rbac">RBAC: OPERATOR_ROLE · ABSA_ROLE · cross-calls InspectionLog + EquipmentRegistry</div>
+      <div class="fn-list">
+        <div class="fn-row"><span class="fn-name">assignInitialCustody(assetId, operator)</span><span class="fn-mod">onlyABSA</span></div>
+        <div class="fn-row"><span class="fn-name">initiateTransfer(assetId, to)</span><span class="fn-mod">onlyOperator</span></div>
+        <div class="fn-row"><span class="fn-name">completeTransfer(assetId)</span><span class="fn-mod">onlyOwner</span></div>
+        <div class="fn-row"><span class="fn-name">cancelTransfer(assetId)</span><span class="fn-mod">onlyOwner</span></div>
+        <div class="fn-row"><span class="fn-name">getCurrentOwner(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">getTransferHistory(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">getPendingTransfer(assetId)</span><span class="fn-view">view</span></div>
+        <div class="fn-row"><span class="fn-name">canTransfer(assetId)</span><span class="fn-view">view</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="event-block">
+      <div class="event-title">OwnershipTransfer Events</div>
+      <div class="event-item"><span class="ename">TransferInitiated</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, from, to</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">TransferCompleted</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId, from, to · transferredAt</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">TransferReverted</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId · reason (not a tx revert)</span></div>
+      <div class="event-item" style="margin-top:6px"><span class="ename">TransferCancelled</span></div>
+      <div class="event-item"><span class="esrc">idx: assetId</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0 0 4px">
+    <div class="prov-block">
+      <div class="prov-title">Detail + Dashboard</div>
+      <div class="prov-item">getPastEvents("TransferCompleted")</div>
+      <div class="prov-item">getPastEvents("TransferReverted")</div>
+      <div class="prov-item">build custody chain timeline</div>
+    </div>
+  </div>
+
+  <!-- ════ AUDITOR ROW ═════════════════════════════════════════════ -->
+  <div style="padding:8px 4px 0 0">
+    <div class="actor-block a-aud">
+      <div class="actor-title">Auditor / Acquiring Operator</div>
+      <div class="actor-item">Screen 6: Equipment Detail</div>
+      <div class="actor-item">Screen 1: Dashboard</div>
+      <div class="actor-item"><span class="tx">Read-only · no gas · no role required</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="web3-block">
+      <div class="web3-title">Web3.js — Read Only</div>
+      <div class="web3-item"><span class="wfn">registry.methods.getEquipment(assetId).call()</span></div>
+      <div class="web3-item"><span class="wfn">registry.methods.isCertified(assetId).call()</span></div>
+      <div class="web3-item"><span class="wfn">inspectionLog.methods.isCompliant(assetId).call()</span></div>
+      <div class="web3-item"><span class="wfn">transfer.methods.getCurrentOwner(assetId).call()</span></div>
+      <div class="web3-item"><span class="wfn">transfer.methods.getTransferHistory(assetId).call()</span></div>
+      <div class="web3-item" style="margin-top:6px"><span class="wscreen">All free eth_call — no MetaMask required for reads</span></div>
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div style="background:#f5f7fb;border-radius:8px;border:1px dashed #ccd3de;padding:12px;font-size:11px;color:#666">
+      Reads span all three contracts via view functions and getPastEvents(). No write access. Can connect with read-only provider (no MetaMask needed for audit queries).
+    </div>
+  </div>
+
+  <div style="padding:8px 4px 0">
+    <div class="event-block">
+      <div class="event-title">Provenance — all events</div>
+      <div class="event-item" style="font-size:10.5px">Screen 6 timeline aggregates all events from all 3 contracts filtered by assetId and sorted by block number</div>
+    </div>
+  </div>
+
+  <div style="padding:8px 0 0 4px">
+    <div class="prov-block">
+      <div class="prov-title">Full timeline build</div>
+      <div class="prov-item">query all 3 contracts</div>
+      <div class="prov-item">merge event arrays</div>
+      <div class="prov-item">sort by blockNumber desc</div>
+      <div class="prov-item">render timeline (Screen 6)</div>
+    </div>
+  </div>
+
+</div><!-- end main grid -->
+
+<!-- ── CROSS-CONTRACT CALLS ── -->
+<div class="xc-callout" style="margin-top:20px">
+  <strong>Cross-contract calls (on-chain) — wired inside OwnershipTransfer.sol</strong>
+  <div class="xc-item">completeTransfer() → IInspectionLog.isCompliant(assetId) &nbsp;·&nbsp; reverts or emits TransferReverted if false</div>
+  <div class="xc-item">completeTransfer() → IEquipmentRegistry.isCertified(assetId) &nbsp;·&nbsp; must be true for transfer to proceed</div>
+  <div class="xc-item">assignInitialCustody() → IEquipmentRegistry.activateEquipment(assetId) &nbsp;·&nbsp; sets status → Active on first custody</div>
+</div>
+
+<!-- ── DEPLOY ORDER ── -->
+<div class="deploy-order">
+  <strong>Deploy order (Koosha):</strong>
+  <div class="deploy-step">1. EquipmentRegistry.sol</div>
+  <div class="deploy-arrow">→</div>
+  <div class="deploy-step">2. InspectionLog.sol</div>
+  <span style="font-size:11px">(pass EquipmentRegistry address to constructor)</span>
+  <div class="deploy-arrow">→</div>
+  <div class="deploy-step">3. OwnershipTransfer.sol</div>
+  <span style="font-size:11px">(pass both addresses to constructor)</span>
+  <div class="deploy-arrow">→</div>
+  <div class="deploy-step">4. grantRole() for each actor</div>
+  <div class="deploy-arrow">→</div>
+  <div class="deploy-step">5. verify on Etherscan</div>
+  <div class="deploy-arrow">→</div>
+  <div class="deploy-step">6. copy addresses to .env</div>
+</div>
+
+<div class="footer-note">
+  <strong>Web3.js ABI loading:</strong> Each contract needs its compiled ABI JSON (from <code>artifacts/contracts/</code> after <code>npx hardhat compile</code>). Import in JS as: <code>const registryABI = require('./artifacts/EquipmentRegistry.json').abi</code><br>
+  <strong>Contract instances:</strong> <code>const registry = new web3.eth.Contract(registryABI, REGISTRY_ADDRESS)</code> — one instance per contract, addresses from <code>.env</code>.<br>
+  <strong>Role detection on connect:</strong> On MetaMask connect, call <code>hasRole()</code> for each role constant against the connected address to determine which screens and buttons to enable.<br>
+  <strong>Event subscription (live updates):</strong> Use <code>contract.events.EventName({ filter: {assetId} })</code> for real-time dashboard updates without page refresh.
+</div>
+
+</body>
+</html>
