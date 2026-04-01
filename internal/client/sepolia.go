@@ -18,7 +18,7 @@ import (
 // SepoliaClient wraps an active go-ethereum RPC connection together with
 // the address of the primary contract the CLI will interact with.
 type SepoliaClient struct {
-	RPCURL    string          // Alchemy / Infura WebSocket or HTTPS endpoint
+	RPCURL    string            // Alchemy / Infura WebSocket or HTTPS endpoint
 	EthClient *ethclient.Client // Live connection; nil until Connect() succeeds
 }
 
@@ -103,7 +103,7 @@ func (s *SepoliaClient) GetAuthTransactor(privateKeyHex string) (*bind.TransactO
 		return nil, fmt.Errorf("sepolia: could not create transactor: %w", err)
 	}
 
-	auth.Nonce    = big.NewInt(int64(nonce))
+	auth.Nonce = big.NewInt(int64(nonce))
 	auth.GasPrice = gasPrice
 	// GasLimit of 0 tells go-ethereum to estimate gas automatically via eth_estimateGas.
 	auth.GasLimit = uint64(0)

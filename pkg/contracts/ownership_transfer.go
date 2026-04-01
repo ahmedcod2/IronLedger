@@ -16,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// Suppress unused-import errors.
 var (
 	_ = big.NewInt
 	_ = strings.NewReader
@@ -27,27 +26,101 @@ var (
 	_ = event.NewSubscription
 )
 
+// TransferRecord mirrors the TransferRecord struct in IOwnershipTransfer.sol.
+type TransferRecord struct {
+	From          common.Address `abi:"from"`
+	To            common.Address `abi:"to"`
+	TransferredAt *big.Int       `abi:"transferredAt"`
+	TransferredBy common.Address `abi:"transferredBy"`
+}
+
 // OwnershipTransferABI is the JSON ABI of the deployed OwnershipTransfer contract.
 const OwnershipTransferABI = `[
   {
-    "inputs": [{"internalType": "address", "name": "registryAddress", "type": "address"}],
+    "inputs": [
+      {"internalType": "address", "name": "absa",              "type": "address"},
+      {"internalType": "address", "name": "equipmentRegistry", "type": "address"},
+      {"internalType": "address", "name": "inspectionLog",     "type": "address"}
+    ],
     "stateMutability": "nonpayable",
     "type": "constructor"
   },
   {
     "inputs": [
-      {"internalType": "string",  "name": "assetId",     "type": "string"},
-      {"internalType": "address", "name": "newOperator", "type": "address"}
+      {"internalType": "uint256", "name": "equipmentId", "type": "uint256"},
+      {"internalType": "address", "name": "operator",    "type": "address"}
     ],
-    "name": "transferOwnership",
+    "name": "assignInitialCustody",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "string", "name": "assetId", "type": "string"}],
-    "name": "canTransfer",
-    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "inputs": [
+      {"internalType": "uint256", "name": "equipmentId", "type": "uint256"},
+      {"internalType": "address", "name": "to",          "type": "address"}
+    ],
+    "name": "initiateTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "completeTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "cancelTransfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "getCurrentOwner",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "getTransferHistory",
+    "outputs": [{
+      "components": [
+        {"internalType": "address", "name": "from",          "type": "address"},
+        {"internalType": "address", "name": "to",            "type": "address"},
+        {"internalType": "uint256", "name": "transferredAt", "type": "uint256"},
+        {"internalType": "address", "name": "transferredBy", "type": "address"}
+      ],
+      "internalType": "struct IOwnershipTransfer.TransferRecord[]",
+      "name": "",
+      "type": "tuple[]"
+    }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "equipmentId", "type": "uint256"}],
+    "name": "getPendingTransfer",
+    "outputs": [{"internalType": "address", "name": "to", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "name": "currentOwner",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "name": "pendingTransfer",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
     "stateMutability": "view",
     "type": "function"
   }
@@ -57,24 +130,20 @@ const OwnershipTransferABI = `[
 // Binding structs
 // ──────────────────────────────────────────────────────────────────────────────
 
-// OwnershipTransfer is the auto-generated Go binding for the OwnershipTransfer contract.
 type OwnershipTransfer struct {
 	OwnershipTransferCaller
 	OwnershipTransferTransactor
 	OwnershipTransferFilterer
 }
 
-// OwnershipTransferCaller wraps the read-only methods.
 type OwnershipTransferCaller struct {
 	contract *bind.BoundContract
 }
 
-// OwnershipTransferTransactor wraps state-changing methods.
 type OwnershipTransferTransactor struct {
 	contract *bind.BoundContract
 }
 
-// OwnershipTransferFilterer is a placeholder for event subscriptions.
 type OwnershipTransferFilterer struct {
 	contract *bind.BoundContract
 }
@@ -97,27 +166,73 @@ func NewOwnershipTransfer(address common.Address, backend bind.ContractBackend) 
 // Transactor methods
 // ──────────────────────────────────────────────────────────────────────────────
 
-// TransferOwnership sends a transferOwnership(string,address) transaction.
-// The contract will revert if the asset is not eligible (see CanTransfer).
-func (t *OwnershipTransferTransactor) TransferOwnership(
+// AssignInitialCustody calls assignInitialCustody(uint256,address). Caller must hold ABSA_ROLE.
+func (t *OwnershipTransferTransactor) AssignInitialCustody(
 	opts *bind.TransactOpts,
-	assetId string,
-	newOperator common.Address,
+	equipmentId *big.Int,
+	operator common.Address,
 ) (*types.Transaction, error) {
-	return t.contract.Transact(opts, "transferOwnership", assetId, newOperator)
+	return t.contract.Transact(opts, "assignInitialCustody", equipmentId, operator)
+}
+
+// InitiateTransfer calls initiateTransfer(uint256,address).
+// Caller must be the current custodian and hold OPERATOR_ROLE.
+func (t *OwnershipTransferTransactor) InitiateTransfer(
+	opts *bind.TransactOpts,
+	equipmentId *big.Int,
+	to common.Address,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "initiateTransfer", equipmentId, to)
+}
+
+// CompleteTransfer calls completeTransfer(uint256). Caller must be the current custodian.
+func (t *OwnershipTransferTransactor) CompleteTransfer(
+	opts *bind.TransactOpts,
+	equipmentId *big.Int,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "completeTransfer", equipmentId)
+}
+
+// CancelTransfer calls cancelTransfer(uint256). Caller must be the current custodian.
+func (t *OwnershipTransferTransactor) CancelTransfer(
+	opts *bind.TransactOpts,
+	equipmentId *big.Int,
+) (*types.Transaction, error) {
+	return t.contract.Transact(opts, "cancelTransfer", equipmentId)
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Caller methods
 // ──────────────────────────────────────────────────────────────────────────────
 
-// CanTransfer calls the canTransfer(string) view function and returns whether
-// the asset currently satisfies the transfer preconditions (certificateIssued && compliant).
-// This is a free eth_call — it does not consume gas.
-func (c *OwnershipTransferCaller) CanTransfer(opts *bind.CallOpts, assetId string) (bool, error) {
+// GetCurrentOwner calls getCurrentOwner(uint256).
+func (c *OwnershipTransferCaller) GetCurrentOwner(opts *bind.CallOpts, equipmentId *big.Int) (common.Address, error) {
 	var out []interface{}
-	if err := c.contract.Call(opts, &out, "canTransfer", assetId); err != nil {
-		return false, err
+	if err := c.contract.Call(opts, &out, "getCurrentOwner", equipmentId); err != nil {
+		return common.Address{}, err
 	}
-	return *abi.ConvertType(out[0], new(bool)).(*bool), nil
+	return *abi.ConvertType(out[0], new(common.Address)).(*common.Address), nil
+}
+
+// GetTransferHistory calls getTransferHistory(uint256) and decodes the tuple[] slice.
+func (c *OwnershipTransferCaller) GetTransferHistory(
+	opts *bind.CallOpts,
+	equipmentId *big.Int,
+) ([]TransferRecord, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "getTransferHistory", equipmentId); err != nil {
+		return nil, err
+	}
+	result := abi.ConvertType(out[0], new([]TransferRecord)).(*[]TransferRecord)
+	return *result, nil
+}
+
+// GetPendingTransfer calls getPendingTransfer(uint256).
+// Returns address(0) when there is no pending transfer.
+func (c *OwnershipTransferCaller) GetPendingTransfer(opts *bind.CallOpts, equipmentId *big.Int) (common.Address, error) {
+	var out []interface{}
+	if err := c.contract.Call(opts, &out, "getPendingTransfer", equipmentId); err != nil {
+		return common.Address{}, err
+	}
+	return *abi.ConvertType(out[0], new(common.Address)).(*common.Address), nil
 }

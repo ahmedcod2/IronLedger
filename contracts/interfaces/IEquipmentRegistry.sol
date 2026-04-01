@@ -2,34 +2,45 @@
 pragma solidity ^0.8.24;
 
 /// @title IEquipmentRegistry
-/// @notice Interface for registering regulated equipment and reading its current lifecycle state.
+/// @notice Interface for registering regulated pressure equipment and managing its lifecycle state.
 interface IEquipmentRegistry {
+    enum Status { Registered, ShopInspected, Certified, Active }
+
     struct Equipment {
-        string assetId;
+        uint256 equipmentId;
         string crn;
         string aNumber;
-        string mdrHash;
-        address currentOperator;
-        bool certificateIssued;
-        bool compliant;
-        bool exists;
+        bytes32 mdrHash;
+        uint256 mawp;
+        address manufacturer;
+        uint256 registeredAt;
+        address shopInspector;
+        uint256 shopInspectedAt;
+        address certificateIssuer;
+        uint256 certificateIssuedAt;
+        Status status;
     }
 
-    /// @notice Registers a new equipment asset with its regulatory identifiers.
-    function registerEquipment(
-        string calldata assetId,
-        string calldata crn,
-        string calldata aNumber,
-        string calldata mdrHash,
-        address initialOperator
-    ) external;
+    /// @notice Registers a new equipment asset and returns its auto-incremented ID.
+    function registerEquipment(string calldata crn, bytes32 mdrHash, uint256 mawp)
+        external
+        returns (uint256 equipmentId);
 
-    /// @notice Marks whether the certificate of inspection has been issued.
-    function setCertificateIssued(string calldata assetId, bool issued) external;
+    /// @notice Records a shop inspection signature, advancing state to ShopInspected.
+    function signShopInspection(uint256 equipmentId) external;
 
-    /// @notice Updates the compliance flag for a given asset.
-    function setComplianceStatus(string calldata assetId, bool compliant) external;
+    /// @notice Issues a commissioning certificate, advancing state to Certified.
+    function issueCertificate(uint256 equipmentId, string calldata aNumber) external;
 
-    /// @notice Returns the stored equipment record for an asset id.
-    function getEquipment(string calldata assetId) external view returns (Equipment memory);
+    /// @notice Activates certified equipment, advancing state to Active.
+    function activateEquipment(uint256 equipmentId) external;
+
+    /// @notice Returns the full equipment record for a given ID.
+    function getEquipment(uint256 equipmentId) external view returns (Equipment memory);
+
+    /// @notice Returns true if the equipment is in Certified or Active state.
+    function isCertified(uint256 equipmentId) external view returns (bool);
+
+    /// @notice Emitted when a new equipment asset is registered.
+    event EquipmentRegistered(uint256 indexed equipmentId, address indexed manufacturer, string crn);
 }

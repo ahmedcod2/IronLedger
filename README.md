@@ -4,14 +4,14 @@ IronLedger is a blockchain-based pressure equipment lifecycle and provenance sys
 
 **Course:** CSE 540 — Team 4, Spring B 2026  
 **Network:** Ethereum Sepolia Testnet (Chain ID 11155111)  
-**Stack:** Solidity 0.8.24 · Hardhat · Go 1.24 · go-ethereum v1.17.1
+**Stack:** Solidity 0.8.24 · OpenZeppelin 5.x · Hardhat · Go 1.24 · go-ethereum v1.17.1
 
 ---
 
 ## Deployed Contracts (Sepolia)
 
-Contract addresses are set in your `.env` file after running the deploy script.
-See `.env.example` for the required variable names and `scripts/deploy.js` for deployment instructions.
+Contract addresses are stored in your `.env` file after running the deploy script.  
+See `.env.example` for required variable names.
 
 ---
 
@@ -19,20 +19,43 @@ See `.env.example` for the required variable names and `scripts/deploy.js` for d
 
 ```
 Off-Chain                          On-Chain (Sepolia)
-─────────────────                  ──────────────────────────────────────
-Manufacturer  ──── register ──────► EquipmentRegistry.sol
-SCO           ──── inspect  ──────► InspectionLog.sol
-ABSA          ──── certify  ──────► EquipmentRegistry.sol
-Operator      ──── transfer ──────► OwnershipTransfer.sol
-                                           │
-                                           └── compliance gate ──► reverts if
-                                                                    cert or
-                                                                    compliance
-                                                                    flag false
-Auditor / ACQ ── status query (free eth_call, no gas) ──────────────────────►
+-----------------                  ------------------------------------------
+Manufacturer  ---- register ------> EquipmentRegistry.sol
+SCO           ---- shopinspect ----> EquipmentRegistry.sol (signShopInspection)
+ABSA          ---- certify --------> EquipmentRegistry.sol (issueCertificate)
+ABSA          ---- activate -------> EquipmentRegistry.sol (activateEquipment)
+SCO           ---- loginspect -----> InspectionLog.sol
+ABSA          ---- custody --------> OwnershipTransfer.sol (assignInitialCustody)
+Operator      ---- initxfer -------> OwnershipTransfer.sol (initiateTransfer)
+                                             |
+                                             +-- compliance gate --> reverts if
+                                                                     isCompliant
+                                                                     returns false
+Operator      ---- completexfer ---> OwnershipTransfer.sol (completeTransfer)
+Auditor / ACQ -- status query (free eth_call, no gas) ---------------------------
 ```
 
-`OwnershipTransfer` cross-calls `EquipmentRegistry` on every transfer attempt. If `certificateIssued` or `compliant` is `false`, the transaction reverts on-chain — no off-chain check can bypass this.
+`OwnershipTransfer` calls `InspectionLog.isCompliant()` when a transfer is initiated. If the compliance flag is `false` — no passing inspection on record, or the last inspection is overdue — `initiateTransfer` reverts on-chain before the transfer is queued.
+
+---
+
+## Role-Based Access Control (RBAC)
+
+All write functions are protected by OpenZeppelin `AccessControl`. Role constants are defined in `contracts/libraries/Roles.sol`.
+
+| Role | Contract | Permitted actions |
+|---|---|---|
+| `MANUFACTURER_ROLE` | EquipmentRegistry | `registerEquipment` |
+| `SCO_ROLE` | EquipmentRegistry | `signShopInspection` |
+| `SCO_ROLE` | InspectionLog | `logInspection` |
+| `ABSA_ROLE` | EquipmentRegistry | `issueCertificate`, `activateEquipment` |
+| `ABSA_ROLE` | InspectionLog | `checkOverdue`, `setInspectionInterval` |
+| `ABSA_ROLE` | OwnershipTransfer | `assignInitialCustody` |
+| `OPERATOR_ROLE` | OwnershipTransfer | `initiateTransfer` (must also be current custodian) |
+| Current custodian | OwnershipTransfer | `completeTransfer`, `cancelTransfer` (address check only, no role) |
+| `DEFAULT_ADMIN_ROLE` | All contracts | `grantRole` / `revokeRole` — assigned to deployer |
+
+Roles are granted post-deploy using `scripts/grant-roles.js` (see **Grant Roles** section below).
 
 ---
 
@@ -40,27 +63,32 @@ Auditor / ACQ ── status query (free eth_call, no gas) ───────�
 
 ```text
 IronLedger/
-├── cmd/ironledger-cli/main.go        ← CLI entry point (4 commands)
-├── internal/client/sepolia.go        ← Ethereum RPC client + EIP-155 tx signer
+├── cmd/ironledger-cli/main.go        <- CLI entry point
+├── internal/client/sepolia.go        <- Ethereum RPC client + EIP-155 tx signer
 ├── pkg/contracts/
-│   ├── equipment_registry.go         ← Go ABI binding for EquipmentRegistry
-│   ├── inspection_log.go             ← Go ABI binding for InspectionLog
-│   └── ownership_transfer.go         ← Go ABI binding for OwnershipTransfer
+│   ├── equipment_registry.go         <- Go ABI binding for EquipmentRegistry
+│   ├── inspection_log.go             <- Go ABI binding for InspectionLog
+│   └── ownership_transfer.go         <- Go ABI binding for OwnershipTransfer
 ├── contracts/
 │   ├── EquipmentRegistry.sol
 │   ├── InspectionLog.sol
 │   ├── OwnershipTransfer.sol
-│   └── interfaces/
-│       ├── IEquipmentRegistry.sol
-│       ├── IInspectionLog.sol
-│       ├── IOwnershipTransfer.sol
-├── scripts/deploy.js                 ← Hardhat deployment (all 3 contracts)
+│   ├── interfaces/
+│   │   ├── IEquipmentRegistry.sol
+│   │   ├── IInspectionLog.sol
+│   │   └── IOwnershipTransfer.sol
+│   └── libraries/
+│       └── Roles.sol                 <- Shared RBAC role constants
+├── scripts/
+│   ├── deploy.js                     <- Deploys all 3 contracts to Sepolia
+│   └── grant-roles.js                <- Grants all roles to deployer wallet
 ├── docs/
-│   ├── architecture.md
-│   └── IronLedger_Architecture_Diagram.html
-├── .env.example                      ← Credential template
+│   └── architecture.md
+├── test/
+│   └── placeholder.test.js           <- Hardhat test suite (31 tests)
+├── .env.example                      <- Credential template
 ├── .gitignore
-├── Makefile                          ← deps / bindings / build / clean
+├── Makefile                          <- deps / bindings / build / clean
 ├── go.mod
 ├── hardhat.config.js
 └── package.json
@@ -76,9 +104,11 @@ IronLedger/
 | Node.js | 18+ | https://nodejs.org |
 | Git | any | https://git-scm.com |
 
+> **Windows users:** `make` is not available in PowerShell. Use the equivalent `go build` command shown below instead.
+
 ---
 
-## Setup
+## Quick Start
 
 ### 1. Clone and install dependencies
 
@@ -93,72 +123,142 @@ go mod tidy
 
 ```bash
 cp .env.example .env
-# Edit .env and fill in:
-#   SEPOLIA_RPC_URL   — Alchemy or Infura HTTPS endpoint
-#   PRIVATE_KEY       — 64-char hex private key (no 0x prefix)
-#   (contract addresses are already filled in above)
 ```
+
+Edit `.env` and fill in:
+- `SEPOLIA_RPC_URL` — Alchemy or Infura HTTPS endpoint for Sepolia
+- `PRIVATE_KEY` — 64-char hex private key, no `0x` prefix
 
 ### 3. Build the CLI
 
-```bash
+```powershell
 go build -o bin/ironledger-cli.exe ./cmd/ironledger-cli/...
 ```
+
+### 4. Run the Hardhat tests
+
+```powershell
+npx hardhat test
+```
+
+All 31 tests should pass, covering RBAC access control and the full 4-step lifecycle on all three contracts.
+
+### 5. Deploy contracts to Sepolia
+
+Set the required env vars in `.env`:
+```
+ABSA_ADDRESS=0x...                  # wallet that receives ABSA_ROLE on deploy
+INSPECTION_INTERVAL_SECS=2592000    # inspection interval in seconds (30 days)
+```
+
+Then deploy:
+```powershell
+npx hardhat run scripts/deploy.js --network sepolia
+```
+
+Copy the three printed addresses into your `.env`:
+```
+REGISTRY_CONTRACT_ADDRESS=0x...
+INSPECTION_CONTRACT_ADDRESS=0x...
+TRANSFER_CONTRACT_ADDRESS=0x...
+```
+
+### 6. Grant roles to your wallet
+
+Your deployer wallet receives `DEFAULT_ADMIN_ROLE` automatically, but not the write roles. Run:
+
+```powershell
+npx hardhat run scripts/grant-roles.js --network sepolia
+```
+
+This grants `MANUFACTURER_ROLE`, `SCO_ROLE`, `ABSA_ROLE`, and `OPERATOR_ROLE` on all contracts to the wallet in your `.env`. To grant roles to a different address, set `GRANT_TO=0x...` in `.env` before running the script.
 
 ---
 
 ## CLI Usage
 
 ```
-ironledger-cli <command> [arguments]
-
-Commands:
-  register  <assetId> <crn> <aNumber> <mdrHash> <operatorAddress>
-  inspect   <assetId> <unixTimestamp> <passed: true|false> <notes>
-  transfer  <assetId> <newOperatorAddress>
-  status    <assetId>
+.\bin\ironledger-cli.exe <command> [arguments]
 ```
 
-### Example — full lifecycle
+| Command | Arguments | Role required |
+|---|---|---|
+| `register` | `<crn> <mdrHashHex> <mawp>` | `MANUFACTURER_ROLE` |
+| `shopinspect` | `<equipmentId>` | `SCO_ROLE` |
+| `certify` | `<equipmentId> <aNumber>` | `ABSA_ROLE` |
+| `activate` | `<equipmentId>` | `ABSA_ROLE` |
+| `loginspect` | `<equipmentId> <pass\|fail> <notesHashHex>` | `SCO_ROLE` |
+| `custody` | `<equipmentId> <operatorAddress>` | `ABSA_ROLE` |
+| `initxfer` | `<equipmentId> <toAddress>` | `OPERATOR_ROLE` + must be current custodian |
+| `completexfer` | `<equipmentId>` | Must be current custodian |
+| `cancelxfer` | `<equipmentId>` | Must be current custodian |
+| `status` | `<equipmentId>` | None (free read) |
+
+### Full lifecycle example
 
 ```powershell
-# Register a new pressure vessel
-.\bin\ironledger-cli.exe register VESSEL-001 CRN-2024-99 A-4521 0xabc...def 0xYourAddress
+# 1. Register a new pressure vessel (Manufacturer)
+#    mdrHashHex = keccak256 of the MDR document (64 hex chars, no 0x), mawp in kPa
+#    The CLI prints the assigned equipment ID after the transaction mines
+.\bin\ironledger-cli.exe register CRN-2024-99 4e16e0a60bcf45c8867d36abc5840fa5c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6 10000
+# Output: Equipment registered successfully — ID: 1 (use this ID for all subsequent commands)
 
-# Log a passing inspection (Unix timestamp)
-.\bin\ironledger-cli.exe inspect VESSEL-001 1743033600 true "Shop inspection passed."
+# 2. SCO signs off on shop inspection
+.\bin\ironledger-cli.exe shopinspect 1
 
-# Query on-chain record (free — no gas)
-.\bin\ironledger-cli.exe status VESSEL-001
+# 3. ABSA issues certificate with A-number
+.\bin\ironledger-cli.exe certify 1 A-4521
 
-# Transfer custody (reverts if certificateIssued or compliant is false)
-.\bin\ironledger-cli.exe transfer VESSEL-001 0xNewOperatorAddress
+# 4. ABSA activates equipment for field use
+.\bin\ironledger-cli.exe activate 1
+
+# 5. Log a passing inspection (SCO)
+#    notesHashHex = keccak256 of off-chain inspection notes (64 hex chars, no 0x)
+.\bin\ironledger-cli.exe loginspect 1 pass aabbccdd11223344aabbccdd11223344aabbccdd11223344aabbccdd11223344
+
+# 6. ABSA assigns initial custody to an operator
+.\bin\ironledger-cli.exe custody 1 0xOperatorAddress
+
+# 7. Operator initiates custody transfer
+.\bin\ironledger-cli.exe initxfer 1 0xNewOperatorAddress
+
+# 8. Complete the transfer
+.\bin\ironledger-cli.exe completexfer 1
+
+# 9. Read on-chain status (free eth_call, no gas)
+.\bin\ironledger-cli.exe status 1
 ```
+
+Each write command prints the transaction hash and blocks until the transaction is mined:
+```
+Connected to Sepolia testnet.
+RegisterEquipment submitted - tx: 0x54061d...
+Waiting for transaction 0x54061d... to be mined...
+Mined in block 10536889 - gas used: 187624
+Equipment registered successfully — ID: 1 (use this ID for all subsequent commands)
+```
+
+The `register` command additionally parses the `EquipmentRegistered` event from the receipt and prints the assigned on-chain equipment ID. All subsequent commands (`shopinspect`, `certify`, `activate`, `loginspect`, `custody`, `initxfer`) take this ID as their first argument.
+
+`status` is a free `eth_call` — instant, no gas, no wallet needed.
 
 ---
 
 ## Re-deploying Contracts
 
-```bash
+After any Solidity change, redeploy and re-grant roles:
+
+```powershell
 npx hardhat run scripts/deploy.js --network sepolia
-# Copy the printed addresses into .env
+# Update the three addresses in .env
+npx hardhat run scripts/grant-roles.js --network sepolia
 ```
 
-## Regenerating Go Bindings (after contract changes)
+## Regenerating Go Bindings
+
+After a contract ABI change, regenerate the Go bindings (requires `solc 0.8.24` and `abigen` on PATH):
 
 ```bash
-make bindings   # requires solc 0.8.24 and abigen on PATH
-make build
+make bindings
+go build -o bin/ironledger-cli.exe ./cmd/ironledger-cli/...
 ```
-
----
-
-## Roles in the System
-
-| Role | Permitted actions |
-|---|---|
-| Manufacturer | `register` — submit equipment design and MDR hash |
-| Safety Codes Officer (SCO) | `inspect` — sign shop and in-service inspections |
-| ABSA | `certify` — issue Certificate of Inspection |
-| Operator | `transfer` — initiate custody transfer |
-| Acquiring Operator / Auditor | `status` — read-only provenance query |
