@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>IronLedger — UI Wireframe</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  /* ── NAV ── */
+  .navbar {
+    background: #0C447C; color: white; padding: 0 24px;
+    display: flex; align-items: center; height: 52px;
+    position: sticky; top: 0; z-index: 100; gap: 0;
+  }
+  .navbar .brand { font-size: 17px; font-weight: bold; letter-spacing: 0.5px; margin-right: 32px; }
+  .navbar .brand span { color: #85B7EB; }
+  .nav-tabs-top { display: flex; gap: 0; flex: 1; }
+  .nav-tab {
+    padding: 0 18px; height: 52px; display: flex; align-items: center;
+    font-size: 13px; cursor: pointer; color: #B5D4F4; border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-tab:hover { color: white; background: rgba(255,255,255,0.08); }
+  .nav-tab.active { color: white; border-bottom-color: #85B7EB; }
+  .wallet-btn {
+    margin-left: auto; background: #185FA5; border: 1px solid #378ADD;
+    color: white; padding: 6px 14px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .wallet-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: #5DCAA5; }
+
+  /* ── LAYOUT ── */
+  .page { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: white; border-radius: 10px; border: 1px solid #dde3ed;
+    padding: 20px 24px; margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 14px; font-weight: bold; color: #0C447C;
+    margin-bottom: 16px; padding-bottom: 10px;
+    border-bottom: 1px solid #e8edf5;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  /* ── STAT CARDS ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+  .stat-card {
+    background: white; border-radius: 10px; border: 1px solid #dde3ed;
+    padding: 16px 20px;
+  }
+  .stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: bold; color: #0C447C; }
+  .stat-sub { font-size: 11px; color: #888; margin-top: 4px; }
+
+  /* ── FORMS ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 600; color: #555; }
+  .input-mock {
+    height: 36px; border: 1px solid #ccd3de; border-radius: 6px;
+    padding: 0 10px; font-size: 13px; background: #fafbfc;
+    display: flex; align-items: center; color: #999;
+  }
+  .input-mock.filled { color: #333; background: white; }
+  .textarea-mock {
+    height: 72px; border: 1px solid #ccd3de; border-radius: 6px;
+    padding: 8px 10px; font-size: 13px; background: #fafbfc; color: #999;
+  }
+  .select-mock {
+    height: 36px; border: 1px solid #ccd3de; border-radius: 6px;
+    padding: 0 10px; font-size: 13px; background: #fafbfc;
+    display: flex; align-items: center; justify-content: space-between; color: #555;
+  }
+  .select-mock::after { content: '▾'; color: #888; }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn {
+    padding: 8px 20px; border-radius: 6px; font-size: 13px;
+    font-weight: 600; cursor: pointer; border: none;
+  }
+  .btn-primary { background: #185FA5; color: white; }
+  .btn-secondary { background: white; color: #185FA5; border: 1px solid #185FA5; }
+  .btn-danger { background: #A32D2D; color: white; }
+  .btn-success { background: #0F6E56; color: white; }
+  .btn-warning { background: #854F0B; color: white; }
+  .btn-sm { padding: 4px 12px; font-size: 11px; }
+
+  /* ── BADGES ── */
+  .badge {
+    display: inline-block; padding: 3px 9px; border-radius: 99px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-compliant { background: #E1F5EE; color: #085041; border: 1px solid #5DCAA5; }
+  .badge-flagged   { background: #FCEBEB; color: #791F1F; border: 1px solid #F09595; }
+  .badge-pending   { background: #FAEEDA; color: #633806; border: 1px solid #EF9F27; }
+  .badge-certified { background: #E6F1FB; color: #0C447C; border: 1px solid #85B7EB; }
+  .badge-role      { background: #EEEDFE; color: #3C3489; border: 1px solid #AFA9EC; }
+  .badge-active    { background: #EAF3DE; color: #27500A; border: 1px solid #97C459; }
+
+  /* ── TABLE ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #f5f7fb; }
+  th { padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600;
+       color: #888; border-bottom: 1px solid #e0e6f0; text-transform: uppercase; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f0f2f7; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafd; }
+
+  /* ── ROLE BANNER ── */
+  .role-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: 8px; margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .role-banner.absa    { background: #E1F5EE; border: 1px solid #5DCAA5; color: #085041; }
+  .role-banner.sco     { background: #FAEEDA; border: 1px solid #EF9F27; color: #633806; }
+  .role-banner.operator{ background: #EEEDFE; border: 1px solid #AFA9EC; color: #3C3489; }
+  .role-banner.mfg     { background: #FAECE7; border: 1px solid #F0997B; color: #712B13; }
+  .role-banner.auditor { background: #E6F1FB; border: 1px solid #85B7EB; color: #0C447C; }
+
+  /* ── PROVENANCE TIMELINE ── */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 9px; top: 6px; bottom: 6px;
+    width: 2px; background: #dde3ed;
+  }
+  .tl-item { position: relative; margin-bottom: 18px; }
+  .tl-dot {
+    position: absolute; left: -24px; top: 3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid white; box-shadow: 0 0 0 2px #dde3ed;
+  }
+  .tl-dot.green  { background: #1D9E75; box-shadow: 0 0 0 2px #5DCAA5; }
+  .tl-dot.blue   { background: #185FA5; box-shadow: 0 0 0 2px #85B7EB; }
+  .tl-dot.amber  { background: #BA7517; box-shadow: 0 0 0 2px #EF9F27; }
+  .tl-dot.red    { background: #E24B4A; box-shadow: 0 0 0 2px #F09595; }
+  .tl-event { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+  .tl-meta  { font-size: 11px; color: #888; margin-top: 2px; }
+  .tl-addr  { font-family: monospace; font-size: 11px; color: #185FA5; }
+
+  /* ── COMPLIANCE GATE ── */
+  .gate-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .gate-pass { background: #E1F5EE; border: 1px solid #5DCAA5; }
+  .gate-fail { background: #FCEBEB; border: 1px solid #F09595; }
+  .gate-icon { font-size: 16px; }
+  .gate-label { flex: 1; font-weight: 600; }
+  .gate-sub { font-size: 11px; color: #888; }
+
+  /* ── SEARCH BAR ── */
+  .search-bar {
+    display: flex; gap: 10px; margin-bottom: 20px;
+  }
+  .search-input {
+    flex: 1; height: 40px; border: 1px solid #ccd3de; border-radius: 8px;
+    padding: 0 14px; font-size: 14px; background: white;
+    display: flex; align-items: center; color: #999;
+  }
+  .search-btn {
+    height: 40px; padding: 0 20px; background: #185FA5; color: white;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+
+  /* ── SECTION LABEL ── */
+  .section-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #888; margin-bottom: 10px; margin-top: 4px;
+  }
+
+  /* ── TWO COL LAYOUT ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  /* ── SCREEN LABEL ── */
+  .screen-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #0C447C; color: white; padding: 4px 12px;
+    border-radius: 99px; font-size: 11px; font-weight: 600;
+    margin-bottom: 16px; letter-spacing: 0.04em;
+  }
+
+  /* ── TOOLTIP-STYLE NOTE ── */
+  .wf-note {
+    background: #FFFDE7; border: 1px solid #F9A825; border-radius: 6px;
+    padding: 8px 12px; font-size: 11px; color: #555; margin-top: 12px;
+  }
+
+  /* ── HASH DISPLAY ── */
+  .hash {
+    font-family: monospace; font-size: 11px; color: #185FA5;
+    background: #f0f4fa; padding: 2px 6px; border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ NAVBAR ══════════════════════════════════════════════════════ -->
+<div class="navbar">
+  <div class="brand">Iron<span>Ledger</span></div>
+  <div class="nav-tabs-top">
+    <div class="nav-tab active" onclick="show('dashboard')">Dashboard</div>
+    <div class="nav-tab" onclick="show('register')">Register Equipment</div>
+    <div class="nav-tab" onclick="show('inspect')">Inspection Log</div>
+    <div class="nav-tab" onclick="show('certificate')">Certificate</div>
+    <div class="nav-tab" onclick="show('transfer')">Ownership Transfer</div>
+    <div class="nav-tab" onclick="show('detail')">Equipment Detail</div>
+  </div>
+  <div class="wallet-btn">
+    <div class="dot"></div>
+    0xA3f2…9c14
+  </div>
+</div>
+
+<!-- ══ SCREEN 1: DASHBOARD ════════════════════════════════════════ -->
+<div class="page active" id="dashboard">
+  <div class="screen-pill">Screen 1 — Dashboard</div>
+  <div class="role-banner absa">
+    <strong>Connected role:</strong> ABSA &nbsp;·&nbsp; 0xA3f2…9c14
+    &nbsp;·&nbsp; <span class="badge badge-active">Sepolia</span>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Registered Equipment</div>
+      <div class="stat-value">142</div>
+      <div class="stat-sub">+3 this week</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Compliant Assets</div>
+      <div class="stat-value" style="color:#085041">138</div>
+      <div class="stat-sub">97.2% compliance rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Flags</div>
+      <div class="stat-value" style="color:#A32D2D">4</div>
+      <div class="stat-sub">Transfers blocked</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Pending Transfers</div>
+      <div class="stat-value" style="color:#633806">7</div>
+      <div class="stat-sub">Awaiting completion</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-input">Search by asset ID, CRN, or A-number…</div>
+    <button class="search-btn">Search</button>
+    <button class="btn btn-secondary">+ Register New</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent Activity</div>
+    <table>
+      <thead>
+        <tr><th>Asset ID</th><th>Event</th><th>Actor</th><th>Role</th><th>Timestamp</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>VESSEL-001</strong></td>
+          <td>Certificate Issued</td>
+          <td><span class="hash">0xA3f2…9c14</span></td>
+          <td><span class="badge badge-role">ABSA</span></td>
+          <td>2026-03-27 09:14</td>
+          <td><span class="badge badge-certified">Certified</span></td>
+        </tr>
+        <tr>
+          <td><strong>HEX-034</strong></td>
+          <td>Inspection Logged</td>
+          <td><span class="hash">0xBc91…2d44</span></td>
+          <td><span class="badge badge-pending">SCO</span></td>
+          <td>2026-03-27 08:52</td>
+          <td><span class="badge badge-compliant">Compliant</span></td>
+        </tr>
+        <tr>
+          <td><strong>BOIL-019</strong></td>
+          <td>ComplianceFlag Set</td>
+          <td><span class="hash">contract</span></td>
+          <td><span class="badge badge-flagged">Auto</span></td>
+          <td>2026-03-26 17:30</td>
+          <td><span class="badge badge-flagged">Flagged</span></td>
+        </tr>
+        <tr>
+          <td><strong>VESSEL-008</strong></td>
+          <td>Transfer Completed</td>
+          <td><span class="hash">0xF441…88ab</span></td>
+          <td><span class="badge badge-role">Operator</span></td>
+          <td>2026-03-26 14:05</td>
+          <td><span class="badge badge-active">Active</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="wf-note">Web3.js: reads recent events from all three contracts via <code>getPastEvents()</code> on Sepolia. Wallet role determined by <code>hasRole()</code> call on connect.</div>
+</div>
+
+<!-- ══ SCREEN 2: REGISTER EQUIPMENT ══════════════════════════════ -->
+<div class="page" id="register">
+  <div class="screen-pill">Screen 2 — Register Equipment</div>
+  <div class="role-banner mfg">
+    <strong>Required role:</strong> Manufacturer &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">Equipment Registration Form</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Asset ID *</label>
+            <div class="input-mock filled">VESSEL-142</div>
+          </div>
+          <div class="form-group">
+            <label>Canadian Registration Number (CRN) *</label>
+            <div class="input-mock filled">0C18768.5</div>
+          </div>
+          <div class="form-group">
+            <label>A-Number *</label>
+            <div class="input-mock filled">A4521001</div>
+          </div>
+          <div class="form-group">
+            <label>Max Allowable Working Pressure — MAWP (kPa) *</label>
+            <div class="input-mock filled">1750</div>
+          </div>
+          <div class="form-group full">
+            <label>MDR Hash (bytes32 — keccak-256 of Manufacturer's Data Report) *</label>
+            <div class="input-mock filled" style="font-family:monospace;font-size:11px">0x3a9f…c812</div>
+          </div>
+          <div class="form-group full">
+            <label>Initial Operator Address</label>
+            <div class="input-mock">0x… (optional at registration)</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary">Register Equipment</button>
+          <button class="btn btn-secondary">Clear Form</button>
+        </div>
+        <div class="wf-note">Calls <code>registerEquipment(crn, mdrHash, mawp)</code> on EquipmentRegistry.sol · requires MANUFACTURER_ROLE · emits EquipmentRegistered event</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Transaction Preview</div>
+        <div class="section-label">Function</div>
+        <div style="font-family:monospace;font-size:12px;background:#f5f7fb;padding:10px;border-radius:6px;margin-bottom:14px">
+          registerEquipment(<br>
+          &nbsp;&nbsp;"0C18768.5",<br>
+          &nbsp;&nbsp;0x3a9f…c812,<br>
+          &nbsp;&nbsp;1750<br>
+          )
+        </div>
+        <div class="section-label">Estimated Gas</div>
+        <div style="font-size:13px;margin-bottom:14px">~120,000 gas &nbsp;·&nbsp; ≈ 0.003 SepoliaETH</div>
+        <div class="section-label">Contract</div>
+        <div class="hash" style="display:block;margin-bottom:14px">EquipmentRegistry.sol · 0x1a2b…ff03</div>
+        <div class="section-label">Network</div>
+        <div style="font-size:13px"><span class="badge badge-active">Sepolia Testnet</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Status After Registration</div>
+        <div class="gate-row gate-fail">
+          <div class="gate-icon">○</div>
+          <div><div class="gate-label">Shop Inspection</div><div class="gate-sub">Awaiting SCO sign-off</div></div>
+        </div>
+        <div class="gate-row gate-fail">
+          <div class="gate-icon">○</div>
+          <div><div class="gate-label">Certificate of Inspection</div><div class="gate-sub">Awaiting ABSA issuance</div></div>
+        </div>
+        <div class="gate-row gate-fail">
+          <div class="gate-icon">○</div>
+          <div><div class="gate-label">Transfer Eligible</div><div class="gate-sub">Blocked — not yet certified</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 3: INSPECTION LOG ══════════════════════════════════ -->
+<div class="page" id="inspect">
+  <div class="screen-pill">Screen 3 — Inspection Log</div>
+  <div class="role-banner sco">
+    <strong>Required role:</strong> Safety Codes Officer (SCO) &nbsp;·&nbsp; Write access to InspectionLog.sol
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">Log New Inspection</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Asset ID *</label>
+            <div class="input-mock filled">HEX-034</div>
+          </div>
+          <div class="form-group full">
+            <label>Inspection Result *</label>
+            <div class="select-mock"><span>Pass</span></div>
+          </div>
+          <div class="form-group full">
+            <label>Notes Hash (bytes32 — keccak-256 of inspection report) *</label>
+            <div class="input-mock filled" style="font-family:monospace;font-size:11px">0xd4e1…a302</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:10px">
+          Timestamp will be set automatically to <code>block.timestamp</code> — not caller-supplied.
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary">Sign &amp; Log Inspection</button>
+          <button class="btn btn-secondary">Clear</button>
+        </div>
+        <div class="wf-note">Calls <code>logInspection(assetId, Result.Pass, notesHash)</code> · requires SCO_ROLE · if Pass and flag active → emits ComplianceFlagCleared · emits InspectionLogged</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Compliance Status</div>
+        <div class="gate-row gate-pass">
+          <div class="gate-icon">✓</div>
+          <div><div class="gate-label">HEX-034 — Compliant</div><div class="gate-sub">Last inspected: 2026-03-27 · No active flags</div></div>
+        </div>
+        <div class="gate-row gate-fail">
+          <div class="gate-icon">✗</div>
+          <div><div class="gate-label">BOIL-019 — Flagged</div><div class="gate-sub">Inspection overdue since 2025-11-14 · Transfer blocked</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Inspection History — HEX-034</div>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Date</th><th>Inspector</th><th>Result</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>3</td>
+              <td>2026-03-27</td>
+              <td><span class="hash">0xBc91…2d44</span></td>
+              <td><span class="badge badge-compliant">Pass</span></td>
+              <td><span class="hash">0xd4e1…a302</span></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>2025-03-15</td>
+              <td><span class="hash">0xBc91…2d44</span></td>
+              <td><span class="badge badge-compliant">Pass</span></td>
+              <td><span class="hash">0x8f22…cc01</span></td>
+            </tr>
+            <tr>
+              <td>1</td>
+              <td>2024-03-08</td>
+              <td><span class="hash">0xEe77…5b19</span></td>
+              <td><span class="badge badge-compliant">Pass</span></td>
+              <td><span class="hash">0x1a90…3f44</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="wf-note">Calls <code>getInspectionCount()</code> then <code>getInspectionRecord(index)</code> for each record on InspectionLog.sol</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 4: CERTIFICATE OF INSPECTION ═══════════════════════ -->
+<div class="page" id="certificate">
+  <div class="screen-pill">Screen 4 — Certificate of Inspection</div>
+  <div class="role-banner absa">
+    <strong>Required role:</strong> ABSA &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">Issue Certificate of Inspection</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Asset ID *</label>
+            <div class="input-mock filled">VESSEL-142</div>
+          </div>
+          <div class="form-group full">
+            <label>A-Number to assign *</label>
+            <div class="input-mock filled">A4521001</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="section-label">Pre-conditions (must all pass)</div>
+          <div class="gate-row gate-pass" style="margin-bottom:6px">
+            <div class="gate-icon">✓</div>
+            <div><div class="gate-label">Equipment Registered</div><div class="gate-sub">Status: Registered ✓</div></div>
+          </div>
+          <div class="gate-row gate-pass" style="margin-bottom:6px">
+            <div class="gate-icon">✓</div>
+            <div><div class="gate-label">Shop Inspection Signed</div><div class="gate-sub">SCO: 0xBc91…2d44 · 2026-03-26</div></div>
+          </div>
+          <div class="gate-row gate-fail">
+            <div class="gate-icon">○</div>
+            <div><div class="gate-label">Certificate Not Yet Issued</div><div class="gate-sub">Ready to issue</div></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-success">Issue Certificate of Inspection</button>
+          <button class="btn btn-secondary">Cancel</button>
+        </div>
+        <div class="wf-note">Calls <code>issueCertificate(assetId, aNumber)</code> · requires ABSA_ROLE · requires status = ShopInspected · emits CertificateIssued · status → Certified</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Equipment Summary — VESSEL-142</div>
+        <table>
+          <tbody>
+            <tr><td style="color:#888;font-size:12px">Asset ID</td><td><strong>VESSEL-142</strong></td></tr>
+            <tr><td style="color:#888;font-size:12px">CRN</td><td>0C18768.5</td></tr>
+            <tr><td style="color:#888;font-size:12px">A-Number</td><td>A4521001 (pending)</td></tr>
+            <tr><td style="color:#888;font-size:12px">MAWP</td><td>1,750 kPa</td></tr>
+            <tr><td style="color:#888;font-size:12px">MDR Hash</td><td><span class="hash">0x3a9f…c812</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Manufacturer</td><td><span class="hash">0xD221…4f90</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Registered</td><td>2026-03-25</td></tr>
+            <tr><td style="color:#888;font-size:12px">Status</td><td><span class="badge badge-pending">ShopInspected</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 5: OWNERSHIP TRANSFER ══════════════════════════════ -->
+<div class="page" id="transfer">
+  <div class="screen-pill">Screen 5 — Ownership Transfer</div>
+  <div class="role-banner operator">
+    <strong>Required role:</strong> Operator &nbsp;·&nbsp; Write access to OwnershipTransfer.sol
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">Initiate Transfer</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label>Asset ID *</label>
+            <div class="input-mock filled">VESSEL-008</div>
+          </div>
+          <div class="form-group full">
+            <label>Acquiring Operator Address *</label>
+            <div class="input-mock filled">0xF441…88ab</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <div class="section-label">Compliance Gate Check</div>
+          <div class="gate-row gate-pass" style="margin-bottom:6px">
+            <div class="gate-icon">✓</div>
+            <div><div class="gate-label">Certificate Issued</div><div class="gate-sub">isCertified() = true</div></div>
+          </div>
+          <div class="gate-row gate-pass" style="margin-bottom:6px">
+            <div class="gate-icon">✓</div>
+            <div><div class="gate-label">No Active Compliance Flag</div><div class="gate-sub">isCompliant() = true</div></div>
+          </div>
+          <div class="gate-row gate-pass">
+            <div class="gate-icon">✓</div>
+            <div><div class="gate-label">Transfer Eligible</div><div class="gate-sub">canTransfer() = true</div></div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary">Initiate Transfer</button>
+          <button class="btn btn-secondary">Cancel</button>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid #eee">
+          <div class="section-label">Complete Pending Transfer</div>
+          <div style="font-size:13px;color:#555;margin-bottom:10px">
+            Pending: VESSEL-008 → <span class="hash">0xF441…88ab</span>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-success">Complete Transfer</button>
+            <button class="btn btn-danger">Cancel Transfer</button>
+          </div>
+        </div>
+        <div class="wf-note">Calls <code>initiateTransfer()</code> then <code>completeTransfer()</code> · completeTransfer calls <code>isCompliant()</code> on InspectionLog · emits TransferCompleted or TransferReverted</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Transfer History — VESSEL-008</div>
+        <table>
+          <thead>
+            <tr><th>From</th><th>To</th><th>Date</th><th>By</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="hash">0xC33a…1120</span></td>
+              <td><span class="hash">0xF441…88ab</span></td>
+              <td>2026-03-26</td>
+              <td><span class="badge badge-role">Operator</span></td>
+            </tr>
+            <tr>
+              <td><span class="hash">0xA881…dd04</span></td>
+              <td><span class="hash">0xC33a…1120</span></td>
+              <td>2024-08-11</td>
+              <td><span class="badge badge-role">Operator</span></td>
+            </tr>
+            <tr>
+              <td><span class="hash">ABSA</span></td>
+              <td><span class="hash">0xA881…dd04</span></td>
+              <td>2023-01-15</td>
+              <td><span class="badge badge-role">ABSA</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="wf-note">Calls <code>getTransferHistory(assetId)</code> on OwnershipTransfer.sol</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Blocked Transfer Example</div>
+        <div class="gate-row gate-pass" style="margin-bottom:6px">
+          <div class="gate-icon">✓</div>
+          <div><div class="gate-label">Certificate Issued</div><div class="gate-sub">isCertified() = true</div></div>
+        </div>
+        <div class="gate-row gate-fail" style="margin-bottom:6px">
+          <div class="gate-icon">✗</div>
+          <div><div class="gate-label">Active Compliance Flag</div><div class="gate-sub">isCompliant() = false — inspection overdue</div></div>
+        </div>
+        <div class="gate-row gate-fail">
+          <div class="gate-icon">✗</div>
+          <div><div class="gate-label">Transfer Blocked</div><div class="gate-sub">TransferReverted event emitted on-chain</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN 6: EQUIPMENT DETAIL ════════════════════════════════ -->
+<div class="page" id="detail">
+  <div class="screen-pill">Screen 6 — Equipment Detail / Provenance</div>
+  <div class="role-banner auditor">
+    <strong>Role:</strong> Auditor / Acquiring Operator &nbsp;·&nbsp; Read-only · all queries are free <code>eth_call</code> (no gas)
+  </div>
+
+  <div class="search-bar">
+    <div class="search-input filled" style="color:#333;font-size:14px">VESSEL-008</div>
+    <button class="search-btn">Load Asset</button>
+  </div>
+
+  <div class="three-col" style="margin-bottom:20px">
+    <div class="stat-card">
+      <div class="stat-label">Asset ID</div>
+      <div style="font-size:18px;font-weight:bold;color:#0C447C">VESSEL-008</div>
+      <div class="stat-sub">CRN: 0C18334.2</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Compliance Status</div>
+      <div style="margin-top:6px"><span class="badge badge-compliant" style="font-size:14px;padding:5px 14px">Compliant</span></div>
+      <div class="stat-sub">No active flags</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Current Owner</div>
+      <div class="hash" style="display:block;margin-top:6px;font-size:12px">0xF441…88ab</div>
+      <div class="stat-sub">Since 2026-03-26</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card">
+        <div class="card-title">Equipment Record</div>
+        <table>
+          <tbody>
+            <tr><td style="color:#888;font-size:12px;width:40%">Asset ID</td><td>VESSEL-008</td></tr>
+            <tr><td style="color:#888;font-size:12px">CRN</td><td>0C18334.2</td></tr>
+            <tr><td style="color:#888;font-size:12px">A-Number</td><td>A3812044</td></tr>
+            <tr><td style="color:#888;font-size:12px">MAWP</td><td>2,100 kPa</td></tr>
+            <tr><td style="color:#888;font-size:12px">MDR Hash</td><td><span class="hash">0x9c3d…f201</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Manufacturer</td><td><span class="hash">0xD221…4f90</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Certificate Issued</td><td><span class="badge badge-certified">Yes — 2023-01-12</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Shop Inspector</td><td><span class="hash">0xEe77…5b19</span></td></tr>
+            <tr><td style="color:#888;font-size:12px">Cert Issuer</td><td><span class="hash">0xA3f2…9c14</span> (ABSA)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="card-title">Provenance Timeline</div>
+        <div class="timeline">
+          <div class="tl-item">
+            <div class="tl-dot green"></div>
+            <div class="tl-event">Transfer Completed</div>
+            <div class="tl-meta">2026-03-26 · OwnershipTransfer.sol</div>
+            <div class="tl-addr">0xC33a…1120 → 0xF441…88ab</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot blue"></div>
+            <div class="tl-event">Inspection Logged — Pass</div>
+            <div class="tl-meta">2026-02-10 · InspectionLog.sol</div>
+            <div class="tl-addr">SCO: 0xBc91…2d44</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot amber"></div>
+            <div class="tl-event">ComplianceFlag Set — Overdue</div>
+            <div class="tl-meta">2025-11-14 · InspectionLog.sol</div>
+            <div class="tl-addr">Auto-emitted by contract</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot blue"></div>
+            <div class="tl-event">Inspection Logged — Pass</div>
+            <div class="tl-meta">2024-11-09 · InspectionLog.sol</div>
+            <div class="tl-addr">SCO: 0xBc91…2d44</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot green"></div>
+            <div class="tl-event">Transfer Completed</div>
+            <div class="tl-meta">2024-08-11 · OwnershipTransfer.sol</div>
+            <div class="tl-addr">0xA881…dd04 → 0xC33a…1120</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot green"></div>
+            <div class="tl-event">Certificate of Inspection Issued</div>
+            <div class="tl-meta">2023-01-12 · EquipmentRegistry.sol</div>
+            <div class="tl-addr">ABSA: 0xA3f2…9c14</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot blue"></div>
+            <div class="tl-event">Shop Inspection Signed</div>
+            <div class="tl-meta">2023-01-10 · EquipmentRegistry.sol</div>
+            <div class="tl-addr">SCO: 0xEe77…5b19</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot blue"></div>
+            <div class="tl-event">Equipment Registered</div>
+            <div class="tl-meta">2023-01-05 · EquipmentRegistry.sol</div>
+            <div class="tl-addr">Manufacturer: 0xD221…4f90</div>
+          </div>
+        </div>
+        <div class="wf-note">Built from <code>getPastEvents()</code> across all 3 contracts filtered by assetId. Sorted by block number descending.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const tabs = ['dashboard','register','inspect','certificate','transfer','detail'];
+  document.querySelectorAll('.nav-tab')[tabs.indexOf(id)].classList.add('active');
+}
+</script>
+</body>
+</html>
