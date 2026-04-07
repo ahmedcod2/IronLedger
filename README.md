@@ -91,6 +91,7 @@ IronLedger/
 │   │   ├── IronLedger_Function_Signatures.xlsx
 │   │   └── IronLedger_State_Variables_and_Event_Schemas.xlsx 
 │   └── ui
+│       ├── index.html                        <- Web UI (open directly in browser)
 │       ├── IronLedger_Integration_Diagram.html
 │       ├── IronLedger_Roles_Permissions.xlsx
 │       └── IronLedger_UI_Mockup.html
@@ -113,6 +114,7 @@ IronLedger/
 | Go | 1.22+ | https://go.dev/dl/ |
 | Node.js | 18+ | https://nodejs.org |
 | Git | any | https://git-scm.com |
+| MetaMask | latest | https://metamask.io/download/ (browser extension — required for the Web UI) |
 
 > **Windows users:** `make` is not available in PowerShell. Use the equivalent `go build` command shown below instead.
 
@@ -251,6 +253,172 @@ Equipment registered successfully — ID: 1 (use this ID for all subsequent comm
 The `register` command additionally parses the `EquipmentRegistered` event from the receipt and prints the assigned on-chain equipment ID. All subsequent commands (`shopinspect`, `certify`, `activate`, `loginspect`, `custody`, `initxfer`) take this ID as their first argument.
 
 `status` is a free `eth_call` — instant, no gas, no wallet needed.
+
+---
+
+## Running the Web UI
+
+The web interface is a self-contained HTML file at `docs/ui/index.html`. It uses **ethers.js 5.7.2** loaded directly from CDN — no build step is required for the UI itself.
+
+> **Important:** MetaMask does **not** work when opening the file directly via `file://` in your browser. You must serve the UI over HTTP. The easiest way is with the `serve` package, which is included in the project's `devDependencies` and requires no extra installation beyond `npm install`.
+
+### Requirements
+
+| Requirement | Details |
+|---|---|
+| Node.js 18+ | Required to run the local HTTP server (`npx serve`) |
+| npm packages | Run `npm install` in the project root — installs `serve` and all Hardhat deps |
+| MetaMask | [Install the browser extension](https://metamask.io/download/) (Chrome, Firefox, Brave, or Edge) |
+| Sepolia test ETH | Your wallet must have Sepolia ETH to pay gas. Get free test ETH from a faucet (see below) |
+| Deployed contract addresses | From running `scripts/deploy.js` — see the **Deploy** section above |
+
+### Step 1 — Install dependencies
+
+If you have not done so already:
+
+```powershell
+npm install
+```
+
+This installs `serve` (the local HTTP server) along with Hardhat and all other project dependencies. No separate `npm install -g serve` is needed.
+
+### Step 2 — Start the local HTTP server
+
+From the project root, run:
+
+```powershell
+npx serve docs/ui
+```
+
+You should see output like:
+
+```
+   ┌──────────────────────────────────────────────────┐
+   │                                                  │
+   │   Serving!                                       │
+   │                                                  │
+   │   - Local:    http://localhost:3000              │
+   │   - Network:  http://192.168.x.x:3000            │
+   │                                                  │
+   └──────────────────────────────────────────────────┘
+```
+
+Leave this terminal window open while you use the UI.
+
+### Step 3 — Open the UI in your browser
+
+Navigate to:
+
+```
+http://localhost:3000
+```
+
+> Do **not** open `docs/ui/index.html` directly via `file://` — MetaMask will not inject into `file://` pages and the wallet connection will fail.
+
+### Step 4 — Set up MetaMask
+
+1. Install the [MetaMask browser extension](https://metamask.io/download/) if you have not already.
+2. Create or import a wallet. Keep your seed phrase secure.
+3. Switch MetaMask to the **Sepolia** testnet:
+   - Click the network selector at the top of MetaMask
+   - Enable "Show test networks" in Settings → Advanced if Sepolia is not listed
+   - Select **Sepolia**
+4. Fund your wallet with Sepolia test ETH (free — see faucets below).
+
+### Step 5 — Get Sepolia test ETH (free)
+
+You need a small amount of Sepolia ETH to pay gas for write transactions. Use any of these faucets:
+
+| Faucet | URL | Notes |
+|---|---|---|
+| Alchemy Sepolia Faucet | https://sepoliafaucet.com | Requires free Alchemy account; gives 0.5 ETH/day |
+| Chainlink Faucet | https://faucets.chain.link/sepolia | No account required for small amounts |
+| Google Faucet | Search "Sepolia faucet" in Google | Built-in result powered by Alchemy |
+| Infura Faucet | https://www.infura.io/faucet/sepolia | Requires free Infura account |
+
+Paste your MetaMask wallet address into the faucet and request ETH. The funds arrive within 15–60 seconds.
+
+> Read-only operations (Dashboard, Equipment Detail, status checks) are free `eth_call`s — they require no ETH and do not need MetaMask at all.
+
+### Step 6 — Connect your wallet
+
+Click **Connect Wallet** in the top-right corner of the UI. MetaMask will prompt you to approve the connection. Once connected, your wallet address and ETH balance appear in the header. If you are on the wrong network, a red "Wrong Network" badge appears — click it and switch MetaMask to Sepolia.
+
+### Step 7 — Configure contract addresses
+
+Click the **⚙ Settings** button in the top-right corner and enter the three deployed contract addresses:
+
+| Field | Value |
+|---|---|
+| EquipmentRegistry Address | `0xBEcfeF2471a6e1BeDbD5B6dE8c3ef8626Da2e27c` |
+| InspectionLog Address | `0xFaC9EECA2b0d4823581e36A2953B7990ABcae5B5` |
+| OwnershipTransfer Address | `0x82544563e6dccA61aC59Bba0C7258A816B0F9708` |
+
+Click **Save & Connect**. The addresses are saved to your browser's `localStorage` — you only need to do this once per browser.
+
+> If you have re-deployed the contracts yourself, use the addresses printed by `scripts/deploy.js` instead.
+
+### Step 8 — Use the UI
+
+Once connected, the role banner on each screen shows which roles your connected wallet holds. Available screens:
+
+| Tab | Role required | What it does |
+|---|---|---|
+| Dashboard | None (read-only) | Lists all registered equipment with status and compliance badges |
+| Register Equipment | `MANUFACTURER_ROLE` | Submits `registerEquipment(crn, mdrHash, mawp)` — MDR text is keccak256-hashed in-browser |
+| Inspection Log | `SCO_ROLE` | Submits `logInspection` and runs compliance checks |
+| Certificate | `ABSA_ROLE` | Signs shop inspection, issues certificate, and activates equipment |
+| Ownership Transfer | `OPERATOR_ROLE` / custodian | Initiates, completes, or cancels custody transfers; ABSA assigns initial custody |
+| Equipment Detail | None (read-only) | Full lifecycle timeline for a given equipment ID |
+| Admin / Roles | `DEFAULT_ADMIN_ROLE` | Grants and revokes roles on all three contracts |
+
+Write operations require MetaMask to sign and broadcast a transaction to Sepolia. Each call waits for the transaction to be mined (typically 12–30 seconds) before updating the UI.
+
+---
+
+## Independent User Setup (no contract deployment required)
+
+If you want to interact with the already-deployed contracts on Sepolia without running any scripts yourself, you only need:
+
+1. **Node.js 18+** — to run the local HTTP server
+2. **MetaMask** — browser extension with a Sepolia wallet
+3. **Sepolia test ETH** — from any faucet listed above
+4. A role granted to your wallet by the contract admin
+
+### Steps for independent users
+
+```powershell
+# 1. Clone the repository
+git clone https://github.com/ahmedcod2/IronLedger.git
+cd IronLedger
+
+# 2. Install dependencies (just need serve, but this installs everything)
+npm install
+
+# 3. Start the UI server
+npx serve docs/ui
+```
+
+Then open `http://localhost:3000` in your browser, connect MetaMask (on Sepolia), and enter the contract addresses from the table in Step 7 above.
+
+**Requesting a role:** Write operations are role-gated. Ask the contract admin (`DEFAULT_ADMIN_ROLE` holder) to run the following to grant you a role:
+
+```powershell
+# Admin runs this — replace address and role as needed
+$env:GRANT_TO="0xYourWalletAddress"
+npx hardhat run scripts/grant-roles.js --network sepolia
+```
+
+Or, if the admin has their own tooling, they can call `grantRole(roleBytes32, yourAddress)` on each contract directly. Role byte values:
+
+| Role name | keccak256 value |
+|---|---|
+| `MANUFACTURER_ROLE` | `keccak256("MANUFACTURER_ROLE")` |
+| `SCO_ROLE` | `keccak256("SCO_ROLE")` |
+| `ABSA_ROLE` | `keccak256("ABSA_ROLE")` |
+| `OPERATOR_ROLE` | `keccak256("OPERATOR_ROLE")` |
+
+Once your role is granted, refresh the UI — the role banner on each tab will update automatically when you connect your wallet.
 
 ---
 
