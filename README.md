@@ -91,7 +91,8 @@ IronLedger/
 │   │   ├── IronLedger_Function_Signatures.xlsx
 │   │   └── IronLedger_State_Variables_and_Event_Schemas.xlsx 
 │   └── ui
-│       ├── index.html                        <- Web UI (open directly in browser)
+│       ├── index.html                        <- Web UI (serve via npx serve docs/ui)
+│       ├── style.css                         <- Stylesheet for the Web UI
 │       ├── IronLedger_Integration_Diagram.html
 │       ├── IronLedger_Roles_Permissions.xlsx
 │       └── IronLedger_UI_Mockup.html
