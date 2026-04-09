@@ -340,6 +340,9 @@ tr:hover td { background: #F8FAFD; }
   background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: var(--r-sm);
   padding: 10px 12px; margin-bottom: 14px; font-size: 11px; color: #1D4ED8; line-height: 1.7;
 }
+body.modal-open {
+  overflow: hidden;
+}
 
 /* ── SPINNER ─────────────────────────────────────────────────────── */
 .spinner {

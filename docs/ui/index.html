@@ -707,10 +707,12 @@ function openSettings() {
   document.getElementById('cfg-registry').value   = addr.registry;
   document.getElementById('cfg-inspection').value = addr.inspection;
   document.getElementById('cfg-transfer').value   = addr.transfer;
+  document.body.classList.add('modal-open');
   document.getElementById('settings-modal').classList.add('open');
 }
 
 function closeSettings() {
+  document.body.classList.remove('modal-open');
   document.getElementById('settings-modal').classList.remove('open');
 }
 
