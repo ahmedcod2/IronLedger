@@ -9,30 +9,578 @@
 </head>
 <body>
 
-<!-- NAVBAR -->
-<div class="navbar">
-  <div class="brand" onclick="showPage('dashboard')">
-    <div class="brand-icon">⚡</div>
-    Iron<span>Ledger</span>
-  </div>
-  <div class="nav-tabs-top">
-    <div class="nav-tab active" data-page="dashboard">Dashboard</div>
-    <div class="nav-tab" data-page="register">Register Equipment</div>
-    <div class="nav-tab" data-page="inspect">Inspection Log</div>
-    <div class="nav-tab" data-page="certificate">Certificate</div>
-    <div class="nav-tab" data-page="transfer">Ownership Transfer</div>
-    <div class="nav-tab" data-page="detail">Equipment Detail</div>
-    <div class="nav-tab" data-page="admin">Admin / Roles</div>
-  </div>
-  <div class="nav-right">
-    <span id="network-badge" class="network-badge" style="display:none"></span>
-    <span id="balance-chip" class="balance-chip" style="display:none"></span>
-    <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
-    <button class="wallet-btn" id="wallet-btn" onclick="connectWallet()">
-      <div class="dot" id="wallet-dot"></div>
-      <span id="wallet-label">Connect Wallet</span>
-    </button>
-  </div>
+<!-- SIDEBAR -->
+<div class="app-container">
+  <aside class="sidebar">
+    <div class="brand" onclick="showPage('dashboard')">
+      <!--div class="brand-icon">⚡</div-->
+      Iron<span>Ledger</span>
+    </div>
+    <nav class="nav-tabs-side">
+      <div class="section-label">Main</div>
+      <div class="nav-tab active" data-page="dashboard">Dashboard</div>
+      <div class="nav-tab" data-page="detail">Equipment Detail</div>
+
+      <div class="section-label">Workflow</div>
+      <div class="nav-tab" data-page="register">Register Equipment</div>
+      <div class="nav-tab" data-page="inspect">Inspection Log</div>
+      <div class="nav-tab" data-page="certificate">Certificate</div>
+      <div class="nav-tab" data-page="transfer">Ownership Transfer</div>
+
+      <div class="section-label">System</div>
+      <div class="nav-tab" data-page="admin">Admin / Roles</div>
+    </nav>
+  </aside>
+
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-left"></div>
+      <div class="header-middle">
+        <button class="wallet-btn" id="wallet-btn" onclick="connectWallet()">
+          <div class="dot" id="wallet-dot"></div>
+          <span id="wallet-label">Connect Wallet</span>
+        </button>
+      </div>
+      <div class="header-right">
+        <span id="network-badge" class="network-badge" style="display:none"></span>
+        <span id="balance-chip" class="balance-chip" style="display:none"></span>
+        <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+      </div>
+    </header>
+
+    <!-- ══ SCREEN 1: DASHBOARD ══════════════════════════════════════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-subtitle">All registered pressure equipment — compliance status, lifecycle state, and provenance overview</div>
+      </div>
+      <div id="dash-role-banner" class="role-banner none">
+        Connect your wallet to see your role and interact with contracts.
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Registered Equipment</div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-sub" id="stat-total-sub">Connect wallet to load</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Compliant Assets</div>
+          <div class="stat-value" id="stat-compliant" style="color:#085041">—</div>
+          <div class="stat-sub" id="stat-compliant-sub">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Active Flags</div>
+          <div class="stat-value" id="stat-flags" style="color:#A32D2D">—</div>
+          <div class="stat-sub">Transfers blocked</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Certified Equipment</div>
+          <div class="stat-value" id="stat-certified" style="color:#0C447C">—</div>
+          <div class="stat-sub">Status ≥ Certified</div>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input type="number" id="dash-search-id" placeholder="Search by Equipment ID…" min="1"/>
+        <button class="btn btn-primary" onclick="searchEquipment()">Search</button>
+        <button class="btn btn-secondary" onclick="showPage('register')">+ Register New</button>
+        <button class="btn btn-secondary" onclick="loadDashboard()">↺ Refresh</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">All Registered Equipment</div>
+        <div id="dash-table-container">
+          <div class="empty-state">Connect your wallet and configure contract addresses to load equipment.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 2: REGISTER EQUIPMENT ════════════════════════════════ -->
+    <div class="page" id="page-register">
+      <div class="page-header">
+        <div class="page-title">Register Equipment</div>
+        <div class="page-subtitle">Record a new pressure vessel or fitting on-chain — requires MANUFACTURER_ROLE</div>
+      </div>
+      <div class="role-banner mfg">
+        <strong>Required role:</strong> Manufacturer &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Equipment Registration Form</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Canadian Registration Number (CRN) *</label>
+                <input type="text" id="reg-crn" placeholder="e.g. 0C18768.5"/>
+              </div>
+              <div class="form-group full">
+                <label>MDR Document Text / Description (will be hashed with keccak256) *</label>
+                <textarea id="reg-mdr-text" placeholder="Enter MDR document content or identifier — the keccak256 hash will be stored on-chain"></textarea>
+              </div>
+              <div class="form-group full">
+                <label>Or enter MDR Hash directly (0x prefixed bytes32)</label>
+                <input type="text" id="reg-mdr-hash" placeholder="0x… (leave blank to auto-hash from the text above)"/>
+              </div>
+              <div class="form-group full">
+                <label>Max Allowable Working Pressure — MAWP (kPa) *</label>
+                <input type="number" id="reg-mawp" placeholder="e.g. 1750" min="1"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-register" onclick="registerEquipment()">
+                Register Equipment
+              </button>
+              <button class="btn btn-secondary" onclick="clearRegisterForm()">Clear Form</button>
+            </div>
+            <div class="wf-note">
+              Calls <code>registerEquipment(crn, mdrHash, mawp)</code> on EquipmentRegistry.sol ·
+              requires MANUFACTURER_ROLE · emits EquipmentRegistered event
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Transaction Preview</div>
+            <div class="section-label">Function</div>
+            <div id="reg-preview-fn" style="font-family:monospace;font-size:12px;background:#f5f7fb;padding:10px;border-radius:6px;margin-bottom:14px;word-break:break-all">
+              registerEquipment(crn, mdrHash, mawp)
+            </div>
+            <div class="section-label">Contract</div>
+            <div id="reg-preview-addr" class="hash" style="display:block;margin-bottom:14px">Not configured</div>
+            <div class="section-label">Network</div>
+            <div><span class="badge badge-active">Sepolia Testnet</span></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Registration Result</div>
+            <div id="reg-result-box">
+              <div class="empty-state">Register equipment to see result here.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 3: INSPECTION LOG ════════════════════════════════════ -->
+    <div class="page" id="page-inspect">
+      <div class="page-header">
+        <div class="page-title">Inspection Log</div>
+        <div class="page-subtitle">Log field inspections and compliance checks — requires SCO_ROLE</div>
+      </div>
+      <div class="role-banner sco">
+        <strong>Required role:</strong> Safety Codes Officer (SCO) &nbsp;·&nbsp; Write access to InspectionLog.sol
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Log New Inspection</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="insp-equip-id" placeholder="e.g. 1" min="1"/>
+              </div>
+              <div class="form-group full">
+                <label>Inspection Result *</label>
+                <select id="insp-result">
+                  <option value="0">Pass</option>
+                  <option value="1">Fail</option>
+                </select>
+              </div>
+              <div class="form-group full">
+                <label>Inspection Notes / Report (will be hashed with keccak256) *</label>
+                <textarea id="insp-notes-text" placeholder="Enter inspection notes — keccak256 hash will be stored on-chain"></textarea>
+              </div>
+              <div class="form-group full">
+                <label>Or enter Notes Hash directly (0x prefixed bytes32)</label>
+                <input type="text" id="insp-notes-hash" placeholder="0x… (leave blank to auto-hash from notes above)"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-loginsp" onclick="logInspection()">
+                Sign &amp; Log Inspection
+              </button>
+              <button class="btn btn-secondary" onclick="clearInspectForm()">Clear</button>
+            </div>
+            <div class="wf-note">
+              Calls <code>logInspection(equipmentId, Result, notesHash)</code> ·
+              requires SCO_ROLE · emits InspectionLogged
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Compliance Check</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <input type="number" id="compliance-check-id" placeholder="Equipment ID" min="1"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary" onclick="checkCompliance()">Check Compliance</button>
+              <button class="btn btn-warning" id="btn-checkoverdue" onclick="checkOverdue()">
+                Check Overdue (ABSA)
+              </button>
+            </div>
+            <div id="compliance-result" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Inspection History</div>
+            <div class="search-bar" style="margin-bottom:14px">
+              <input type="number" id="insp-history-id" placeholder="Equipment ID" min="1"/>
+              <button class="btn btn-primary btn-sm" onclick="loadInspectionHistory()">Load</button>
+            </div>
+            <div id="insp-history-container">
+              <div class="empty-state">Enter an equipment ID and click Load to see inspection history.</div>
+            </div>
+            <div class="wf-note">Calls <code>getInspectionHistory(equipmentId)</code> on InspectionLog.sol</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 4: CERTIFICATE ════════════════════════════════════════ -->
+    <div class="page" id="page-certificate">
+      <div class="page-header">
+        <div class="page-title">Certificate of Inspection</div>
+        <div class="page-subtitle">Sign shop inspections, issue ABSA certificates, and activate equipment for field use</div>
+      </div>
+      <div class="role-banner absa">
+        <strong>Required role:</strong> ABSA &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Shop Inspection Sign-off (SCO)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="sco-equip-id" placeholder="Equipment must be in Registered status" min="1"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-warning" id="btn-shopsign" onclick="signShopInspection()">
+                Sign Shop Inspection
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>signShopInspection(equipmentId)</code> · requires SCO_ROLE ·
+              status Registered → ShopInspected
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Issue Certificate of Inspection (ABSA)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="cert-equip-id" placeholder="Equipment must be in ShopInspected status" min="1"/>
+              </div>
+              <div class="form-group full">
+                <label>A-Number to Assign *</label>
+                <input type="text" id="cert-anumber" placeholder="e.g. A4521001"/>
+              </div>
+            </div>
+
+            <div id="cert-gate-check" style="margin-top:16px"></div>
+
+            <div class="btn-row">
+              <button class="btn btn-secondary btn-sm" onclick="loadCertPrecheck()">Check Pre-conditions</button>
+              <button class="btn btn-success" id="btn-issuecert" onclick="issueCertificate()">
+                Issue Certificate
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>issueCertificate(equipmentId, aNumber)</code> · requires ABSA_ROLE ·
+              status ShopInspected → Certified
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Activate Equipment (ABSA)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="activate-equip-id" placeholder="Equipment must be Certified" min="1"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-success" id="btn-activate" onclick="activateEquipment()">
+                Activate Equipment
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>activateEquipment(equipmentId)</code> · requires ABSA_ROLE ·
+              status Certified → Active
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Equipment Summary</div>
+            <div class="search-bar" style="margin-bottom:14px">
+              <input type="number" id="cert-lookup-id" placeholder="Equipment ID" min="1"/>
+              <button class="btn btn-primary btn-sm" onclick="loadCertEquipment()">Load</button>
+            </div>
+            <div id="cert-equip-summary">
+              <div class="empty-state">Enter an equipment ID and click Load.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 5: OWNERSHIP TRANSFER ════════════════════════════════ -->
+    <div class="page" id="page-transfer">
+      <div class="page-header">
+        <div class="page-title">Ownership Transfer</div>
+        <div class="page-subtitle">Assign initial custody and manage compliant operator-to-operator transfers</div>
+      </div>
+      <div class="role-banner operator">
+        <strong>Required role:</strong> Operator &nbsp;·&nbsp; Write access to OwnershipTransfer.sol
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Assign Initial Custody (ABSA)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="custody-equip-id" placeholder="Equipment must be Active" min="1"/>
+              </div>
+              <div class="form-group full">
+                <label>Operator Address *</label>
+                <input type="text" id="custody-operator" placeholder="0x…"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-custody" onclick="assignInitialCustody()">
+                Assign Custody
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>assignInitialCustody(equipmentId, operator)</code> · requires ABSA_ROLE ·
+              one-time call per asset
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Initiate Transfer</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="xfer-equip-id" placeholder="Must be compliant" min="1" oninput="loadTransferGate()"/>
+              </div>
+              <div class="form-group full">
+                <label>To Address (Acquiring Operator) *</label>
+                <input type="text" id="xfer-to" placeholder="0x…"/>
+              </div>
+            </div>
+
+            <div id="transfer-gate-check" style="margin-top:14px"></div>
+
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-initxfer" onclick="initiateTransfer()">
+                Initiate Transfer
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>initiateTransfer(equipmentId, to)</code> · caller must be current owner + OPERATOR_ROLE ·
+              equipment must be isCompliant
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Complete / Cancel Transfer</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Equipment ID *</label>
+                <input type="number" id="xfer-complete-id" placeholder="Equipment with pending transfer" min="1" oninput="loadPendingTransfer()"/>
+              </div>
+            </div>
+            <div id="pending-transfer-info" style="margin: 12px 0"></div>
+            <div class="btn-row">
+              <button class="btn btn-success" id="btn-completexfer" onclick="completeTransfer()">
+                Complete Transfer
+              </button>
+              <button class="btn btn-danger" id="btn-cancelxfer" onclick="cancelTransfer()">
+                Cancel Transfer
+              </button>
+            </div>
+            <div class="wf-note">
+              Calls <code>completeTransfer(equipmentId)</code> or <code>cancelTransfer(equipmentId)</code> ·
+              caller must be current custodian
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Transfer History</div>
+            <div class="search-bar" style="margin-bottom:14px">
+              <input type="number" id="xfer-history-id" placeholder="Equipment ID" min="1"/>
+              <button class="btn btn-primary btn-sm" onclick="loadTransferHistory()">Load</button>
+            </div>
+            <div id="xfer-history-container">
+              <div class="empty-state">Enter an equipment ID and click Load to see transfer history.</div>
+            </div>
+            <div class="wf-note">Calls <code>getTransferHistory(equipmentId)</code> on OwnershipTransfer.sol</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 6: EQUIPMENT DETAIL ══════════════════════════════════ -->
+    <div class="page" id="page-detail">
+      <div class="page-header">
+        <div class="page-title">Equipment Detail &amp; Provenance</div>
+        <div class="page-subtitle">Full lifecycle timeline for any asset — read-only, no gas required</div>
+      </div>
+      <div class="role-banner auditor">
+        <strong>Role:</strong> Any connected wallet &nbsp;·&nbsp; Read-only · free <code>eth_call</code> (no gas)
+      </div>
+
+      <div class="search-bar">
+        <input type="number" id="detail-search-id" placeholder="Enter Equipment ID…" min="1"/>
+        <button class="btn btn-primary" onclick="loadEquipmentDetail()">Load Asset</button>
+      </div>
+
+      <div id="detail-stats" class="three-col" style="display:none;margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-label">Asset ID</div>
+          <div id="detail-stat-id" style="font-size:18px;font-weight:bold;color:#0C447C">—</div>
+          <div class="stat-sub" id="detail-stat-crn">CRN: —</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Compliance Status</div>
+          <div id="detail-stat-compliance" style="margin-top:6px">—</div>
+          <div class="stat-sub" id="detail-stat-flag"></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Current Owner</div>
+          <div id="detail-stat-owner" class="hash" style="display:block;margin-top:6px;font-size:12px">—</div>
+          <div class="stat-sub" id="detail-stat-owner-since"></div>
+        </div>
+      </div>
+
+      <div id="detail-content" class="two-col" style="display:none">
+        <div>
+          <div class="card">
+            <div class="card-title">Equipment Record</div>
+            <div id="detail-record-table"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Inspection Summary</div>
+            <div id="detail-inspection-table"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-title">Provenance Timeline</div>
+            <div id="detail-timeline" class="timeline"></div>
+            <div class="wf-note">Built from on-chain data across all 3 contracts filtered by equipmentId.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN 7: ADMIN / ROLES ══════════════════════════════════════ -->
+    <div class="page" id="page-admin">
+      <div class="page-header">
+        <div class="page-title">Admin &amp; Role Management</div>
+        <div class="page-subtitle">Grant and revoke AccessControl roles on all three contracts — requires DEFAULT_ADMIN_ROLE</div>
+      </div>
+      <div class="role-banner absa">
+        <strong>Required role:</strong> DEFAULT_ADMIN_ROLE &nbsp;·&nbsp; Manage AccessControl roles on all contracts
+      </div>
+
+      <div class="two-col">
+        <div>
+          <div class="card">
+            <div class="card-title">Grant Role</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Contract</label>
+                <select id="grant-contract">
+                  <option value="registry">EquipmentRegistry</option>
+                  <option value="inspection">InspectionLog</option>
+                  <option value="transfer">OwnershipTransfer</option>
+                </select>
+              </div>
+              <div class="form-group full">
+                <label>Role</label>
+                <select id="grant-role">
+                  <option value="MANUFACTURER_ROLE">MANUFACTURER_ROLE</option>
+                  <option value="SCO_ROLE">SCO_ROLE</option>
+                  <option value="ABSA_ROLE">ABSA_ROLE</option>
+                  <option value="OPERATOR_ROLE">OPERATOR_ROLE</option>
+                  <option value="DEFAULT_ADMIN_ROLE">DEFAULT_ADMIN_ROLE</option>
+                </select>
+              </div>
+              <div class="form-group full">
+                <label>Address to Grant Role To *</label>
+                <input type="text" id="grant-address" placeholder="0x…"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="btn-grant" onclick="grantRole()">Grant Role</button>
+              <button class="btn btn-danger" id="btn-revoke" onclick="revokeRole()">Revoke Role</button>
+            </div>
+            <div class="wf-note">
+              Calls <code>grantRole(bytes32 role, address account)</code> on selected contract ·
+              requires DEFAULT_ADMIN_ROLE
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Check Role</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label>Address to Check</label>
+                <input type="text" id="check-role-addr" placeholder="0x… (leave blank to check connected wallet)"/>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary" onclick="checkAllRoles()">Check All Roles</button>
+            </div>
+            <div id="role-check-result" style="margin-top:12px"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-title">Role Reference</div>
+            <table>
+              <thead><tr><th>Role</th><th>Permits</th></tr></thead>
+              <tbody>
+                <tr><td><code>MANUFACTURER_ROLE</code></td><td>Register equipment</td></tr>
+                <tr><td><code>SCO_ROLE</code></td><td>Sign shop inspection, log inspections</td></tr>
+                <tr><td><code>ABSA_ROLE</code></td><td>Issue certificates, activate equipment, check overdue, assign custody</td></tr>
+                <tr><td><code>OPERATOR_ROLE</code></td><td>Initiate custody transfers</td></tr>
+                <tr><td><code>DEFAULT_ADMIN_ROLE</code></td><td>Grant &amp; revoke all roles</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Connected Wallet Roles</div>
+            <div id="my-roles-display">
+              <div class="empty-state">Connect wallet to see your roles.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
 </div>
 
 <!-- TOAST CONTAINER -->
@@ -63,538 +611,6 @@
     <div class="modal-btn-row">
       <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save &amp; Connect</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 1: DASHBOARD ══════════════════════════════════════════ -->
-<div class="page active" id="page-dashboard">
-  <div class="page-header">
-    <div class="page-title">Dashboard</div>
-    <div class="page-subtitle">All registered pressure equipment — compliance status, lifecycle state, and provenance overview</div>
-  </div>
-  <div id="dash-role-banner" class="role-banner none">
-    Connect your wallet to see your role and interact with contracts.
-  </div>
-
-  <div class="stat-grid">
-    <div class="stat-card">
-      <div class="stat-label">Registered Equipment</div>
-      <div class="stat-value" id="stat-total">—</div>
-      <div class="stat-sub" id="stat-total-sub">Connect wallet to load</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Compliant Assets</div>
-      <div class="stat-value" id="stat-compliant" style="color:#085041">—</div>
-      <div class="stat-sub" id="stat-compliant-sub">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Active Flags</div>
-      <div class="stat-value" id="stat-flags" style="color:#A32D2D">—</div>
-      <div class="stat-sub">Transfers blocked</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Certified Equipment</div>
-      <div class="stat-value" id="stat-certified" style="color:#0C447C">—</div>
-      <div class="stat-sub">Status ≥ Certified</div>
-    </div>
-  </div>
-
-  <div class="search-bar">
-    <input type="number" id="dash-search-id" placeholder="Search by Equipment ID…" min="1"/>
-    <button class="btn btn-primary" onclick="searchEquipment()">Search</button>
-    <button class="btn btn-secondary" onclick="showPage('register')">+ Register New</button>
-    <button class="btn btn-secondary" onclick="loadDashboard()">↺ Refresh</button>
-  </div>
-
-  <div class="card">
-    <div class="card-title">All Registered Equipment</div>
-    <div id="dash-table-container">
-      <div class="empty-state">Connect your wallet and configure contract addresses to load equipment.</div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 2: REGISTER EQUIPMENT ════════════════════════════════ -->
-<div class="page" id="page-register">
-  <div class="page-header">
-    <div class="page-title">Register Equipment</div>
-    <div class="page-subtitle">Record a new pressure vessel or fitting on-chain — requires MANUFACTURER_ROLE</div>
-  </div>
-  <div class="role-banner mfg">
-    <strong>Required role:</strong> Manufacturer &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title">Equipment Registration Form</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Canadian Registration Number (CRN) *</label>
-            <input type="text" id="reg-crn" placeholder="e.g. 0C18768.5"/>
-          </div>
-          <div class="form-group full">
-            <label>MDR Document Text / Description (will be hashed with keccak256) *</label>
-            <textarea id="reg-mdr-text" placeholder="Enter MDR document content or identifier — the keccak256 hash will be stored on-chain"></textarea>
-          </div>
-          <div class="form-group full">
-            <label>Or enter MDR Hash directly (0x prefixed bytes32)</label>
-            <input type="text" id="reg-mdr-hash" placeholder="0x… (leave blank to auto-hash from the text above)"/>
-          </div>
-          <div class="form-group full">
-            <label>Max Allowable Working Pressure — MAWP (kPa) *</label>
-            <input type="number" id="reg-mawp" placeholder="e.g. 1750" min="1"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-register" onclick="registerEquipment()">
-            Register Equipment
-          </button>
-          <button class="btn btn-secondary" onclick="clearRegisterForm()">Clear Form</button>
-        </div>
-        <div class="wf-note">
-          Calls <code>registerEquipment(crn, mdrHash, mawp)</code> on EquipmentRegistry.sol ·
-          requires MANUFACTURER_ROLE · emits EquipmentRegistered event
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title">Transaction Preview</div>
-        <div class="section-label">Function</div>
-        <div id="reg-preview-fn" style="font-family:monospace;font-size:12px;background:#f5f7fb;padding:10px;border-radius:6px;margin-bottom:14px;word-break:break-all">
-          registerEquipment(crn, mdrHash, mawp)
-        </div>
-        <div class="section-label">Contract</div>
-        <div id="reg-preview-addr" class="hash" style="display:block;margin-bottom:14px">Not configured</div>
-        <div class="section-label">Network</div>
-        <div><span class="badge badge-active">Sepolia Testnet</span></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Registration Result</div>
-        <div id="reg-result-box">
-          <div class="empty-state">Register equipment to see result here.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 3: INSPECTION LOG ════════════════════════════════════ -->
-<div class="page" id="page-inspect">
-  <div class="page-header">
-    <div class="page-title">Inspection Log</div>
-    <div class="page-subtitle">Log field inspections and compliance checks — requires SCO_ROLE</div>
-  </div>
-  <div class="role-banner sco">
-    <strong>Required role:</strong> Safety Codes Officer (SCO) &nbsp;·&nbsp; Write access to InspectionLog.sol
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title">Log New Inspection</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="insp-equip-id" placeholder="e.g. 1" min="1"/>
-          </div>
-          <div class="form-group full">
-            <label>Inspection Result *</label>
-            <select id="insp-result">
-              <option value="0">Pass</option>
-              <option value="1">Fail</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label>Inspection Notes / Report (will be hashed with keccak256) *</label>
-            <textarea id="insp-notes-text" placeholder="Enter inspection notes — keccak256 hash will be stored on-chain"></textarea>
-          </div>
-          <div class="form-group full">
-            <label>Or enter Notes Hash directly (0x prefixed bytes32)</label>
-            <input type="text" id="insp-notes-hash" placeholder="0x… (leave blank to auto-hash from notes above)"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-loginsp" onclick="logInspection()">
-            Sign &amp; Log Inspection
-          </button>
-          <button class="btn btn-secondary" onclick="clearInspectForm()">Clear</button>
-        </div>
-        <div class="wf-note">
-          Calls <code>logInspection(equipmentId, Result, notesHash)</code> ·
-          requires SCO_ROLE · emits InspectionLogged
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Compliance Check</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <input type="number" id="compliance-check-id" placeholder="Equipment ID" min="1"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="checkCompliance()">Check Compliance</button>
-          <button class="btn btn-warning" id="btn-checkoverdue" onclick="checkOverdue()">
-            Check Overdue (ABSA)
-          </button>
-        </div>
-        <div id="compliance-result" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title">Inspection History</div>
-        <div class="search-bar" style="margin-bottom:14px">
-          <input type="number" id="insp-history-id" placeholder="Equipment ID" min="1"/>
-          <button class="btn btn-primary btn-sm" onclick="loadInspectionHistory()">Load</button>
-        </div>
-        <div id="insp-history-container">
-          <div class="empty-state">Enter an equipment ID and click Load to see inspection history.</div>
-        </div>
-        <div class="wf-note">Calls <code>getInspectionHistory(equipmentId)</code> on InspectionLog.sol</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 4: CERTIFICATE ════════════════════════════════════════ -->
-<div class="page" id="page-certificate">
-  <div class="page-header">
-    <div class="page-title">Certificate of Inspection</div>
-    <div class="page-subtitle">Sign shop inspections, issue ABSA certificates, and activate equipment for field use</div>
-  </div>
-  <div class="role-banner absa">
-    <strong>Required role:</strong> ABSA &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title">Shop Inspection Sign-off (SCO)</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="sco-equip-id" placeholder="Equipment must be in Registered status" min="1"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-warning" id="btn-shopsign" onclick="signShopInspection()">
-            Sign Shop Inspection
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>signShopInspection(equipmentId)</code> · requires SCO_ROLE ·
-          status Registered → ShopInspected
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Issue Certificate of Inspection (ABSA)</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="cert-equip-id" placeholder="Equipment must be in ShopInspected status" min="1"/>
-          </div>
-          <div class="form-group full">
-            <label>A-Number to Assign *</label>
-            <input type="text" id="cert-anumber" placeholder="e.g. A4521001"/>
-          </div>
-        </div>
-
-        <div id="cert-gate-check" style="margin-top:16px"></div>
-
-        <div class="btn-row">
-          <button class="btn btn-secondary btn-sm" onclick="loadCertPrecheck()">Check Pre-conditions</button>
-          <button class="btn btn-success" id="btn-issuecert" onclick="issueCertificate()">
-            Issue Certificate
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>issueCertificate(equipmentId, aNumber)</code> · requires ABSA_ROLE ·
-          status ShopInspected → Certified
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Activate Equipment (ABSA)</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="activate-equip-id" placeholder="Equipment must be Certified" min="1"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-success" id="btn-activate" onclick="activateEquipment()">
-            Activate Equipment
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>activateEquipment(equipmentId)</code> · requires ABSA_ROLE ·
-          status Certified → Active
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title">Equipment Summary</div>
-        <div class="search-bar" style="margin-bottom:14px">
-          <input type="number" id="cert-lookup-id" placeholder="Equipment ID" min="1"/>
-          <button class="btn btn-primary btn-sm" onclick="loadCertEquipment()">Load</button>
-        </div>
-        <div id="cert-equip-summary">
-          <div class="empty-state">Enter an equipment ID and click Load.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 5: OWNERSHIP TRANSFER ════════════════════════════════ -->
-<div class="page" id="page-transfer">
-  <div class="page-header">
-    <div class="page-title">Ownership Transfer</div>
-    <div class="page-subtitle">Assign initial custody and manage compliant operator-to-operator transfers</div>
-  </div>
-  <div class="role-banner operator">
-    <strong>Required role:</strong> Operator &nbsp;·&nbsp; Write access to OwnershipTransfer.sol
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title">Assign Initial Custody (ABSA)</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="custody-equip-id" placeholder="Equipment must be Active" min="1"/>
-          </div>
-          <div class="form-group full">
-            <label>Operator Address *</label>
-            <input type="text" id="custody-operator" placeholder="0x…"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-custody" onclick="assignInitialCustody()">
-            Assign Custody
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>assignInitialCustody(equipmentId, operator)</code> · requires ABSA_ROLE ·
-          one-time call per asset
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Initiate Transfer</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="xfer-equip-id" placeholder="Must be compliant" min="1" oninput="loadTransferGate()"/>
-          </div>
-          <div class="form-group full">
-            <label>To Address (Acquiring Operator) *</label>
-            <input type="text" id="xfer-to" placeholder="0x…"/>
-          </div>
-        </div>
-
-        <div id="transfer-gate-check" style="margin-top:14px"></div>
-
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-initxfer" onclick="initiateTransfer()">
-            Initiate Transfer
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>initiateTransfer(equipmentId, to)</code> · caller must be current owner + OPERATOR_ROLE ·
-          equipment must be isCompliant
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Complete / Cancel Transfer</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Equipment ID *</label>
-            <input type="number" id="xfer-complete-id" placeholder="Equipment with pending transfer" min="1" oninput="loadPendingTransfer()"/>
-          </div>
-        </div>
-        <div id="pending-transfer-info" style="margin: 12px 0"></div>
-        <div class="btn-row">
-          <button class="btn btn-success" id="btn-completexfer" onclick="completeTransfer()">
-            Complete Transfer
-          </button>
-          <button class="btn btn-danger" id="btn-cancelxfer" onclick="cancelTransfer()">
-            Cancel Transfer
-          </button>
-        </div>
-        <div class="wf-note">
-          Calls <code>completeTransfer(equipmentId)</code> or <code>cancelTransfer(equipmentId)</code> ·
-          caller must be current custodian
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title">Transfer History</div>
-        <div class="search-bar" style="margin-bottom:14px">
-          <input type="number" id="xfer-history-id" placeholder="Equipment ID" min="1"/>
-          <button class="btn btn-primary btn-sm" onclick="loadTransferHistory()">Load</button>
-        </div>
-        <div id="xfer-history-container">
-          <div class="empty-state">Enter an equipment ID and click Load to see transfer history.</div>
-        </div>
-        <div class="wf-note">Calls <code>getTransferHistory(equipmentId)</code> on OwnershipTransfer.sol</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 6: EQUIPMENT DETAIL ══════════════════════════════════ -->
-<div class="page" id="page-detail">
-  <div class="page-header">
-    <div class="page-title">Equipment Detail &amp; Provenance</div>
-    <div class="page-subtitle">Full lifecycle timeline for any asset — read-only, no gas required</div>
-  </div>
-  <div class="role-banner auditor">
-    <strong>Role:</strong> Any connected wallet &nbsp;·&nbsp; Read-only · free <code>eth_call</code> (no gas)
-  </div>
-
-  <div class="search-bar">
-    <input type="number" id="detail-search-id" placeholder="Enter Equipment ID…" min="1"/>
-    <button class="btn btn-primary" onclick="loadEquipmentDetail()">Load Asset</button>
-  </div>
-
-  <div id="detail-stats" class="three-col" style="display:none;margin-bottom:20px">
-    <div class="stat-card">
-      <div class="stat-label">Asset ID</div>
-      <div id="detail-stat-id" style="font-size:18px;font-weight:bold;color:#0C447C">—</div>
-      <div class="stat-sub" id="detail-stat-crn">CRN: —</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Compliance Status</div>
-      <div id="detail-stat-compliance" style="margin-top:6px">—</div>
-      <div class="stat-sub" id="detail-stat-flag"></div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Current Owner</div>
-      <div id="detail-stat-owner" class="hash" style="display:block;margin-top:6px;font-size:12px">—</div>
-      <div class="stat-sub" id="detail-stat-owner-since"></div>
-    </div>
-  </div>
-
-  <div id="detail-content" class="two-col" style="display:none">
-    <div>
-      <div class="card">
-        <div class="card-title">Equipment Record</div>
-        <div id="detail-record-table"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Inspection Summary</div>
-        <div id="detail-inspection-table"></div>
-      </div>
-    </div>
-    <div>
-      <div class="card">
-        <div class="card-title">Provenance Timeline</div>
-        <div id="detail-timeline" class="timeline"></div>
-        <div class="wf-note">Built from on-chain data across all 3 contracts filtered by equipmentId.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ SCREEN 7: ADMIN / ROLES ══════════════════════════════════════ -->
-<div class="page" id="page-admin">
-  <div class="page-header">
-    <div class="page-title">Admin &amp; Role Management</div>
-    <div class="page-subtitle">Grant and revoke AccessControl roles on all three contracts — requires DEFAULT_ADMIN_ROLE</div>
-  </div>
-  <div class="role-banner absa">
-    <strong>Required role:</strong> DEFAULT_ADMIN_ROLE &nbsp;·&nbsp; Manage AccessControl roles on all contracts
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="card">
-        <div class="card-title">Grant Role</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Contract</label>
-            <select id="grant-contract">
-              <option value="registry">EquipmentRegistry</option>
-              <option value="inspection">InspectionLog</option>
-              <option value="transfer">OwnershipTransfer</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label>Role</label>
-            <select id="grant-role">
-              <option value="MANUFACTURER_ROLE">MANUFACTURER_ROLE</option>
-              <option value="SCO_ROLE">SCO_ROLE</option>
-              <option value="ABSA_ROLE">ABSA_ROLE</option>
-              <option value="OPERATOR_ROLE">OPERATOR_ROLE</option>
-              <option value="DEFAULT_ADMIN_ROLE">DEFAULT_ADMIN_ROLE</option>
-            </select>
-          </div>
-          <div class="form-group full">
-            <label>Address to Grant Role To *</label>
-            <input type="text" id="grant-address" placeholder="0x…"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" id="btn-grant" onclick="grantRole()">Grant Role</button>
-          <button class="btn btn-danger" id="btn-revoke" onclick="revokeRole()">Revoke Role</button>
-        </div>
-        <div class="wf-note">
-          Calls <code>grantRole(bytes32 role, address account)</code> on selected contract ·
-          requires DEFAULT_ADMIN_ROLE
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Check Role</div>
-        <div class="form-grid">
-          <div class="form-group full">
-            <label>Address to Check</label>
-            <input type="text" id="check-role-addr" placeholder="0x… (leave blank to check connected wallet)"/>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-secondary" onclick="checkAllRoles()">Check All Roles</button>
-        </div>
-        <div id="role-check-result" style="margin-top:12px"></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="card">
-        <div class="card-title">Role Reference</div>
-        <table>
-          <thead><tr><th>Role</th><th>Permits</th></tr></thead>
-          <tbody>
-            <tr><td><code>MANUFACTURER_ROLE</code></td><td>Register equipment</td></tr>
-            <tr><td><code>SCO_ROLE</code></td><td>Sign shop inspection, log inspections</td></tr>
-            <tr><td><code>ABSA_ROLE</code></td><td>Issue certificates, activate equipment, check overdue, assign custody</td></tr>
-            <tr><td><code>OPERATOR_ROLE</code></td><td>Initiate custody transfers</td></tr>
-            <tr><td><code>DEFAULT_ADMIN_ROLE</code></td><td>Grant &amp; revoke all roles</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Connected Wallet Roles</div>
-        <div id="my-roles-display">
-          <div class="empty-state">Connect wallet to see your roles.</div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
