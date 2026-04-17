@@ -17,34 +17,33 @@
       Iron<span>Ledger</span>
     </div>
     <nav class="nav-tabs-side">
-      <div class="section-label">Main</div>
+      <div class="section-label">Main:</div>
       <div class="nav-tab active" data-page="dashboard">Dashboard</div>
       <div class="nav-tab" data-page="detail">Equipment Detail</div>
 
-      <div class="section-label">Workflow</div>
+      <div class="section-label">Workflow:</div>
       <div class="nav-tab" data-page="register">Register Equipment</div>
       <div class="nav-tab" data-page="inspect">Inspection Log</div>
       <div class="nav-tab" data-page="certificate">Certificate</div>
       <div class="nav-tab" data-page="transfer">Ownership Transfer</div>
 
-      <div class="section-label">System</div>
+      <div class="section-label">System:</div>
       <div class="nav-tab" data-page="admin">Admin / Roles</div>
     </nav>
+    <div class="sidebar-footer">
+      <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
+    </div>
   </aside>
 
   <main class="main-content">
     <header class="top-header">
-      <div class="header-left"></div>
-      <div class="header-middle">
+      <div class="header-right">
+        <span id="network-badge" class="network-badge" style="display:none"></span>
+        <span id="balance-chip" class="balance-chip" style="display:none"></span>
         <button class="wallet-btn" id="wallet-btn" onclick="connectWallet()">
           <div class="dot" id="wallet-dot"></div>
           <span id="wallet-label">Connect Wallet</span>
         </button>
-      </div>
-      <div class="header-right">
-        <span id="network-badge" class="network-badge" style="display:none"></span>
-        <span id="balance-chip" class="balance-chip" style="display:none"></span>
-        <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
       </div>
     </header>
 
