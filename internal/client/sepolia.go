@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -56,7 +57,8 @@ func (s *SepoliaClient) GetAuthTransactor(privateKeyHex string) (*bind.TransactO
 	}
 
 	// ── Step 1: Parse the raw hex private key into an ECDSA key object ──────
-	// crypto.HexToECDSA strips a leading "0x" if present.
+	// crypto.HexToECDSA does NOT accept a "0x" prefix — strip it if present.
+	privateKeyHex = strings.TrimPrefix(privateKeyHex, "0x")
 	privateKey, err := crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
 		return nil, fmt.Errorf("sepolia: invalid private key: %w", err)

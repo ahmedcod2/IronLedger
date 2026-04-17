@@ -91,11 +91,13 @@ IronLedger/
 │   │   ├── IronLedger_Function_Signatures.xlsx
 │   │   └── IronLedger_State_Variables_and_Event_Schemas.xlsx 
 │   └── ui
-│       ├── index.html                        <- Web UI (serve via npx serve docs/ui)
-│       ├── style.css                         <- Stylesheet for the Web UI
 │       ├── IronLedger_Integration_Diagram.html
 │       ├── IronLedger_Roles_Permissions.xlsx
 │       └── IronLedger_UI_Mockup.html
+├── ui/
+│   ├── index.html                            <- Web UI (serve via npx serve ui)
+│   ├── app.js                                <- UI application logic
+│   └── style.css                             <- Stylesheet for the Web UI
 ├── test/
 │   └── placeholder.test.js           <- Hardhat test suite (31 tests)
 ├── .env.example                      <- Credential template
@@ -112,8 +114,8 @@ IronLedger/
 
 | Tool | Version | Install |
 |---|---|---|
-| Go | 1.22+ | https://go.dev/dl/ |
-| Node.js | 18+ | https://nodejs.org |
+| Go | 1.24+ | https://go.dev/dl/ |
+| Node.js | 22 LTS | https://nodejs.org |
 | Git | any | https://git-scm.com |
 | MetaMask | latest | https://metamask.io/download/ (browser extension — required for the Web UI) |
 
@@ -140,7 +142,7 @@ cp .env.example .env
 
 Edit `.env` and fill in:
 - `SEPOLIA_RPC_URL` — Alchemy or Infura HTTPS endpoint for Sepolia
-- `PRIVATE_KEY` — 64-char hex private key, no `0x` prefix
+- `PRIVATE_KEY` — 64-char hex private key (with or without `0x` prefix — the Hardhat config normalises automatically)
 
 ### 3. Build the CLI
 
@@ -259,15 +261,15 @@ The `register` command additionally parses the `EquipmentRegistered` event from 
 
 ## Running the Web UI
 
-The web interface is a self-contained HTML file at `docs/ui/index.html`. It uses **ethers.js 5.7.2** loaded directly from CDN — no build step is required for the UI itself.
+The web interface is a self-contained HTML file at `ui/index.html`. It uses **ethers.js 5.7.2** loaded directly from CDN — no build step is required for the UI itself.
 
-> **Important:** MetaMask does **not** work when opening the file directly via `file://` in your browser. You must serve the UI over HTTP. The easiest way is with the `serve` package, which is included in the project's `devDependencies` and requires no extra installation beyond `npm install`.
+> **Important:** MetaMask does **not** work when opening the file directly via `file://` in your browser. You must serve the UI over HTTP. The easiest way is with `npx serve`, which downloads and runs a local HTTP server on the fly — no extra installation is needed beyond `npm install`.
 
 ### Requirements
 
 | Requirement | Details |
 |---|---|
-| Node.js 18+ | Required to run the local HTTP server (`npx serve`) |
+| Node.js 22 LTS | Required to run the local HTTP server (`npx serve`) |
 | npm packages | Run `npm install` in the project root — installs `serve` and all Hardhat deps |
 | MetaMask | [Install the browser extension](https://metamask.io/download/) (Chrome, Firefox, Brave, or Edge) |
 | Sepolia test ETH | Your wallet must have Sepolia ETH to pay gas. Get free test ETH from a faucet (see below) |
@@ -281,14 +283,14 @@ If you have not done so already:
 npm install
 ```
 
-This installs `serve` (the local HTTP server) along with Hardhat and all other project dependencies. No separate `npm install -g serve` is needed.
+This installs Hardhat and all project dependencies. The `npx serve` command used below downloads and runs the `serve` HTTP server automatically — no separate install step is needed.
 
 ### Step 2 — Start the local HTTP server
 
 From the project root, run:
 
 ```powershell
-npx serve docs/ui
+npx serve ui
 ```
 
 You should see output like:
@@ -314,7 +316,7 @@ Navigate to:
 http://localhost:3000
 ```
 
-> Do **not** open `docs/ui/index.html` directly via `file://` — MetaMask will not inject into `file://` pages and the wallet connection will fail.
+> Do **not** open `ui/index.html` directly via `file://` — MetaMask will not inject into `file://` pages and the wallet connection will fail.
 
 ### Step 4 — Set up MetaMask
 
@@ -381,7 +383,7 @@ Write operations require MetaMask to sign and broadcast a transaction to Sepolia
 
 If you want to interact with the already-deployed contracts on Sepolia without running any scripts yourself, you only need:
 
-1. **Node.js 18+** — to run the local HTTP server
+1. **Node.js 22 LTS** — to run the local HTTP server
 2. **MetaMask** — browser extension with a Sepolia wallet
 3. **Sepolia test ETH** — from any faucet listed above
 4. A role granted to your wallet by the contract admin
@@ -393,11 +395,11 @@ If you want to interact with the already-deployed contracts on Sepolia without r
 git clone https://github.com/ahmedcod2/IronLedger.git
 cd IronLedger
 
-# 2. Install dependencies (just need serve, but this installs everything)
+# 2. Install dependencies
 npm install
 
 # 3. Start the UI server
-npx serve docs/ui
+npx serve ui
 ```
 
 Then open `http://localhost:3000` in your browser, connect MetaMask (on Sepolia), and enter the contract addresses from the table in Step 7 above.
@@ -441,3 +443,22 @@ After a contract ABI change, regenerate the Go bindings (requires `solc 0.8.24` 
 make bindings
 go build -o bin/ironledger-cli.exe ./cmd/ironledger-cli/...
 ```
+
+---
+
+## Web UI Features
+
+The browser-based UI (`ui/`) is a single-page application that communicates directly with MetaMask and the deployed Sepolia contracts. Key features:
+
+| Feature | Description |
+|---|---|
+| **Dashboard** | Paginated equipment table with sortable columns, status/compliance filters, CSV export, and a recent on-chain activity feed |
+| **Full-Text Search** | Search by Equipment ID, CRN, A-Number, or manufacturer address from the dashboard search bar |
+| **Equipment Detail** | Full lifecycle timeline built from on-chain events across all three contracts |
+| **Dark Mode** | Toggle between light and dark themes via the 🌙 button in the sidebar; respects OS preference by default |
+| **Responsive Layout** | Hamburger menu, collapsible sidebar, and mobile-optimised forms for smaller screens |
+| **Role-Aware Navigation** | Lock icons appear on tabs the connected wallet cannot access; role banner updates on each screen |
+| **Form Persistence** | Registration and inspection form inputs are saved to `sessionStorage` so data is not lost on tab switch |
+| **Print Certificate** | Generates a print-ready Certificate of Inspection styled for regulatory use |
+| **My Transfers** | Shows all custody transfers involving the connected wallet across all equipment |
+| **Silent Auto-Reconnect** | If MetaMask already has permission, the wallet reconnects automatically on page load without prompting |

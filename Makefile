@@ -1,7 +1,7 @@
 # IronLedger — Makefile
 #
 # Requires:
-#   - Go  1.22+          (https://go.dev/dl/)
+#   - Go  1.24+          (https://go.dev/dl/)
 #   - solc 0.8.24        (https://docs.soliditylang.org/en/latest/installing-solidity.html)
 #   - abigen             installed via:  go install github.com/ethereum/go-ethereum/cmd/abigen@latest
 #   - make               (use Git Bash / WSL on Windows, or install via Chocolatey: choco install make)
@@ -68,7 +68,7 @@ bindings: $(OUT_ABI)
 	solc --abi --bin \
 	     --include-path node_modules/ \
 	     --base-path . \
-	     $(CONTRACTS_DIR)/interfaces/InspectionLog.sol \
+	     $(CONTRACTS_DIR)/InspectionLog.sol \
 	     -o $(OUT_ABI)/InspectionLog \
 	     --overwrite
 
