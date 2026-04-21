@@ -50,6 +50,18 @@ func main() {
 	inspectAddr := mustEnv("INSPECTION_CONTRACT_ADDRESS")
 	transferAddr := mustEnv("TRANSFER_CONTRACT_ADDRESS")
 
+	// Validate contract addresses are well-formed Ethereum hex addresses
+	for _, pair := range [][2]string{
+		{"REGISTRY_CONTRACT_ADDRESS", registryAddr},
+		{"INSPECTION_CONTRACT_ADDRESS", inspectAddr},
+		{"TRANSFER_CONTRACT_ADDRESS", transferAddr},
+	} {
+		addr := strings.TrimPrefix(pair[1], "0x")
+		if len(addr) != 40 {
+			log.Fatalf("error: %s must be a 40-hex-char Ethereum address, got %q", pair[0], pair[1])
+		}
+	}
+
 	// -- 2. Guard: require a sub-command --------------------------------------
 	if len(os.Args) < 2 {
 		printUsage()

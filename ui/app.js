@@ -1,621 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>IronLedger — Pressure Equipment Lifecycle</title>
-<link rel="stylesheet" href="style.css"/>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-</head>
-<body>
-
-<!-- SIDEBAR -->
-<div class="app-container">
-  <aside class="sidebar">
-    <div class="brand" onclick="showPage('dashboard')">
-      <!--div class="brand-icon">⚡</div-->
-      Iron<span>Ledger</span>
-    </div>
-    <nav class="nav-tabs-side">
-      <div class="section-label">Main:</div>
-      <div class="nav-tab active" data-page="dashboard">Dashboard</div>
-      <div class="nav-tab" data-page="detail">Equipment Detail</div>
-
-      <div class="section-label">Workflow:</div>
-      <div class="nav-tab" data-page="register">Register Equipment</div>
-      <div class="nav-tab" data-page="inspect">Inspection Log</div>
-      <div class="nav-tab" data-page="certificate">Certificate</div>
-      <div class="nav-tab" data-page="transfer">Ownership Transfer</div>
-
-      <div class="section-label">System:</div>
-      <div class="nav-tab" data-page="admin">Admin / Roles</div>
-    </nav>
-    <div class="sidebar-footer">
-      <button class="settings-btn" onclick="openSettings()">⚙ Settings</button>
-    </div>
-  </aside>
-
-  <main class="main-content">
-    <header class="top-header">
-      <div class="header-right">
-        <span id="network-badge" class="network-badge" style="display:none"></span>
-        <span id="balance-chip" class="balance-chip" style="display:none"></span>
-        <button class="wallet-btn" id="wallet-btn" onclick="connectWallet()">
-          <div class="dot" id="wallet-dot"></div>
-          <span id="wallet-label">Connect Wallet</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- ══ SCREEN 1: DASHBOARD ══════════════════════════════════════════ -->
-    <div class="page active" id="page-dashboard">
-      <div class="page-header">
-        <div class="page-title">Dashboard</div>
-        <div class="page-subtitle">All registered pressure equipment — compliance status, lifecycle state, and provenance overview</div>
-      </div>
-      <div id="dash-role-banner" class="role-banner none">
-        Connect your wallet to see your role and interact with contracts.
-      </div>
-
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-label">Registered Equipment</div>
-          <div class="stat-value" id="stat-total">—</div>
-          <div class="stat-sub" id="stat-total-sub">Connect wallet to load</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Compliant Assets</div>
-          <div class="stat-value" id="stat-compliant" style="color:#085041">—</div>
-          <div class="stat-sub" id="stat-compliant-sub">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Active Flags</div>
-          <div class="stat-value" id="stat-flags" style="color:#A32D2D">—</div>
-          <div class="stat-sub">Transfers blocked</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Certified Equipment</div>
-          <div class="stat-value" id="stat-certified" style="color:#0C447C">—</div>
-          <div class="stat-sub">Status ≥ Certified</div>
-        </div>
-      </div>
-
-      <div class="search-bar">
-        <input type="number" id="dash-search-id" placeholder="Search by Equipment ID…" min="1"/>
-        <button class="btn btn-primary" onclick="searchEquipment()">Search</button>
-        <button class="btn btn-secondary" onclick="showPage('register')">+ Register New</button>
-        <button class="btn btn-secondary" onclick="loadDashboard()">↺ Refresh</button>
-      </div>
-
-      <div class="card">
-        <div class="card-title">All Registered Equipment</div>
-        <div id="dash-table-container">
-          <div class="empty-state">Connect your wallet and configure contract addresses to load equipment.</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 2: REGISTER EQUIPMENT ════════════════════════════════ -->
-    <div class="page" id="page-register">
-      <div class="page-header">
-        <div class="page-title">Register Equipment</div>
-        <div class="page-subtitle">Record a new pressure vessel or fitting on-chain — requires MANUFACTURER_ROLE</div>
-      </div>
-      <div class="role-banner mfg">
-        <strong>Required role:</strong> Manufacturer &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
-      </div>
-
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Equipment Registration Form</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Canadian Registration Number (CRN) *</label>
-                <input type="text" id="reg-crn" placeholder="e.g. 0C18768.5"/>
-              </div>
-              <div class="form-group full">
-                <label>MDR Document Text / Description (will be hashed with keccak256) *</label>
-                <textarea id="reg-mdr-text" placeholder="Enter MDR document content or identifier — the keccak256 hash will be stored on-chain"></textarea>
-              </div>
-              <div class="form-group full">
-                <label>Or enter MDR Hash directly (0x prefixed bytes32)</label>
-                <input type="text" id="reg-mdr-hash" placeholder="0x… (leave blank to auto-hash from the text above)"/>
-              </div>
-              <div class="form-group full">
-                <label>Max Allowable Working Pressure — MAWP (kPa) *</label>
-                <input type="number" id="reg-mawp" placeholder="e.g. 1750" min="1"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-register" onclick="registerEquipment()">
-                Register Equipment
-              </button>
-              <button class="btn btn-secondary" onclick="clearRegisterForm()">Clear Form</button>
-            </div>
-            <div class="wf-note">
-              Calls <code>registerEquipment(crn, mdrHash, mawp)</code> on EquipmentRegistry.sol ·
-              requires MANUFACTURER_ROLE · emits EquipmentRegistered event
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-title">Transaction Preview</div>
-            <div class="section-label">Function</div>
-            <div id="reg-preview-fn" style="font-family:monospace;font-size:12px;background:#f5f7fb;padding:10px;border-radius:6px;margin-bottom:14px;word-break:break-all">
-              registerEquipment(crn, mdrHash, mawp)
-            </div>
-            <div class="section-label">Contract</div>
-            <div id="reg-preview-addr" class="hash" style="display:block;margin-bottom:14px">Not configured</div>
-            <div class="section-label">Network</div>
-            <div><span class="badge badge-active">Sepolia Testnet</span></div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Registration Result</div>
-            <div id="reg-result-box">
-              <div class="empty-state">Register equipment to see result here.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 3: INSPECTION LOG ════════════════════════════════════ -->
-    <div class="page" id="page-inspect">
-      <div class="page-header">
-        <div class="page-title">Inspection Log</div>
-        <div class="page-subtitle">Log field inspections and compliance checks — requires SCO_ROLE</div>
-      </div>
-      <div class="role-banner sco">
-        <strong>Required role:</strong> Safety Codes Officer (SCO) &nbsp;·&nbsp; Write access to InspectionLog.sol
-      </div>
-
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Log New Inspection</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="insp-equip-id" placeholder="e.g. 1" min="1"/>
-              </div>
-              <div class="form-group full">
-                <label>Inspection Result *</label>
-                <select id="insp-result">
-                  <option value="0">Pass</option>
-                  <option value="1">Fail</option>
-                </select>
-              </div>
-              <div class="form-group full">
-                <label>Inspection Notes / Report (will be hashed with keccak256) *</label>
-                <textarea id="insp-notes-text" placeholder="Enter inspection notes — keccak256 hash will be stored on-chain"></textarea>
-              </div>
-              <div class="form-group full">
-                <label>Or enter Notes Hash directly (0x prefixed bytes32)</label>
-                <input type="text" id="insp-notes-hash" placeholder="0x… (leave blank to auto-hash from notes above)"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-loginsp" onclick="logInspection()">
-                Sign &amp; Log Inspection
-              </button>
-              <button class="btn btn-secondary" onclick="clearInspectForm()">Clear</button>
-            </div>
-            <div class="wf-note">
-              Calls <code>logInspection(equipmentId, Result, notesHash)</code> ·
-              requires SCO_ROLE · emits InspectionLogged
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Compliance Check</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <input type="number" id="compliance-check-id" placeholder="Equipment ID" min="1"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-secondary" onclick="checkCompliance()">Check Compliance</button>
-              <button class="btn btn-warning" id="btn-checkoverdue" onclick="checkOverdue()">
-                Check Overdue (ABSA)
-              </button>
-            </div>
-            <div id="compliance-result" style="margin-top:12px"></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-title">Inspection History</div>
-            <div class="search-bar" style="margin-bottom:14px">
-              <input type="number" id="insp-history-id" placeholder="Equipment ID" min="1"/>
-              <button class="btn btn-primary btn-sm" onclick="loadInspectionHistory()">Load</button>
-            </div>
-            <div id="insp-history-container">
-              <div class="empty-state">Enter an equipment ID and click Load to see inspection history.</div>
-            </div>
-            <div class="wf-note">Calls <code>getInspectionHistory(equipmentId)</code> on InspectionLog.sol</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 4: CERTIFICATE ════════════════════════════════════════ -->
-    <div class="page" id="page-certificate">
-      <div class="page-header">
-        <div class="page-title">Certificate of Inspection</div>
-        <div class="page-subtitle">Sign shop inspections, issue ABSA certificates, and activate equipment for field use</div>
-      </div>
-      <div class="role-banner absa">
-        <strong>Required role:</strong> ABSA &nbsp;·&nbsp; Write access to EquipmentRegistry.sol
-      </div>
-
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Shop Inspection Sign-off (SCO)</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="sco-equip-id" placeholder="Equipment must be in Registered status" min="1"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-warning" id="btn-shopsign" onclick="signShopInspection()">
-                Sign Shop Inspection
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>signShopInspection(equipmentId)</code> · requires SCO_ROLE ·
-              status Registered → ShopInspected
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Issue Certificate of Inspection (ABSA)</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="cert-equip-id" placeholder="Equipment must be in ShopInspected status" min="1"/>
-              </div>
-              <div class="form-group full">
-                <label>A-Number to Assign *</label>
-                <input type="text" id="cert-anumber" placeholder="e.g. A4521001"/>
-              </div>
-            </div>
-
-            <div id="cert-gate-check" style="margin-top:16px"></div>
-
-            <div class="btn-row">
-              <button class="btn btn-secondary btn-sm" onclick="loadCertPrecheck()">Check Pre-conditions</button>
-              <button class="btn btn-success" id="btn-issuecert" onclick="issueCertificate()">
-                Issue Certificate
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>issueCertificate(equipmentId, aNumber)</code> · requires ABSA_ROLE ·
-              status ShopInspected → Certified
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Activate Equipment (ABSA)</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="activate-equip-id" placeholder="Equipment must be Certified" min="1"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-success" id="btn-activate" onclick="activateEquipment()">
-                Activate Equipment
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>activateEquipment(equipmentId)</code> · requires ABSA_ROLE ·
-              status Certified → Active
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-title">Equipment Summary</div>
-            <div class="search-bar" style="margin-bottom:14px">
-              <input type="number" id="cert-lookup-id" placeholder="Equipment ID" min="1"/>
-              <button class="btn btn-primary btn-sm" onclick="loadCertEquipment()">Load</button>
-            </div>
-            <div id="cert-equip-summary">
-              <div class="empty-state">Enter an equipment ID and click Load.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 5: OWNERSHIP TRANSFER ════════════════════════════════ -->
-    <div class="page" id="page-transfer">
-      <div class="page-header">
-        <div class="page-title">Ownership Transfer</div>
-        <div class="page-subtitle">Assign initial custody and manage compliant operator-to-operator transfers</div>
-      </div>
-      <div class="role-banner operator">
-        <strong>Required role:</strong> Operator &nbsp;·&nbsp; Write access to OwnershipTransfer.sol
-      </div>
-
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Assign Initial Custody (ABSA)</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="custody-equip-id" placeholder="Equipment must be Active" min="1"/>
-              </div>
-              <div class="form-group full">
-                <label>Operator Address *</label>
-                <input type="text" id="custody-operator" placeholder="0x…"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-custody" onclick="assignInitialCustody()">
-                Assign Custody
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>assignInitialCustody(equipmentId, operator)</code> · requires ABSA_ROLE ·
-              one-time call per asset
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Initiate Transfer</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="xfer-equip-id" placeholder="Must be compliant" min="1" oninput="loadTransferGate()"/>
-              </div>
-              <div class="form-group full">
-                <label>To Address (Acquiring Operator) *</label>
-                <input type="text" id="xfer-to" placeholder="0x…"/>
-              </div>
-            </div>
-
-            <div id="transfer-gate-check" style="margin-top:14px"></div>
-
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-initxfer" onclick="initiateTransfer()">
-                Initiate Transfer
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>initiateTransfer(equipmentId, to)</code> · caller must be current owner + OPERATOR_ROLE ·
-              equipment must be isCompliant
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Complete / Cancel Transfer</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Equipment ID *</label>
-                <input type="number" id="xfer-complete-id" placeholder="Equipment with pending transfer" min="1" oninput="loadPendingTransfer()"/>
-              </div>
-            </div>
-            <div id="pending-transfer-info" style="margin: 12px 0"></div>
-            <div class="btn-row">
-              <button class="btn btn-success" id="btn-completexfer" onclick="completeTransfer()">
-                Complete Transfer
-              </button>
-              <button class="btn btn-danger" id="btn-cancelxfer" onclick="cancelTransfer()">
-                Cancel Transfer
-              </button>
-            </div>
-            <div class="wf-note">
-              Calls <code>completeTransfer(equipmentId)</code> or <code>cancelTransfer(equipmentId)</code> ·
-              caller must be current custodian
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-title">Transfer History</div>
-            <div class="search-bar" style="margin-bottom:14px">
-              <input type="number" id="xfer-history-id" placeholder="Equipment ID" min="1"/>
-              <button class="btn btn-primary btn-sm" onclick="loadTransferHistory()">Load</button>
-            </div>
-            <div id="xfer-history-container">
-              <div class="empty-state">Enter an equipment ID and click Load to see transfer history.</div>
-            </div>
-            <div class="wf-note">Calls <code>getTransferHistory(equipmentId)</code> on OwnershipTransfer.sol</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 6: EQUIPMENT DETAIL ══════════════════════════════════ -->
-    <div class="page" id="page-detail">
-      <div class="page-header">
-        <div class="page-title">Equipment Detail &amp; Provenance</div>
-        <div class="page-subtitle">Full lifecycle timeline for any asset — read-only, no gas required</div>
-      </div>
-      <div class="role-banner auditor">
-        <strong>Role:</strong> Any connected wallet &nbsp;·&nbsp; Read-only · free <code>eth_call</code> (no gas)
-      </div>
-
-      <div class="search-bar">
-        <input type="number" id="detail-search-id" placeholder="Enter Equipment ID…" min="1"/>
-        <button class="btn btn-primary" onclick="loadEquipmentDetail()">Load Asset</button>
-      </div>
-
-      <div id="detail-stats" class="three-col" style="display:none;margin-bottom:20px">
-        <div class="stat-card">
-          <div class="stat-label">Asset ID</div>
-          <div id="detail-stat-id" style="font-size:18px;font-weight:bold;color:#0C447C">—</div>
-          <div class="stat-sub" id="detail-stat-crn">CRN: —</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Compliance Status</div>
-          <div id="detail-stat-compliance" style="margin-top:6px">—</div>
-          <div class="stat-sub" id="detail-stat-flag"></div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Current Owner</div>
-          <div id="detail-stat-owner" class="hash" style="display:block;margin-top:6px;font-size:12px">—</div>
-          <div class="stat-sub" id="detail-stat-owner-since"></div>
-        </div>
-      </div>
-
-      <div id="detail-content" class="two-col" style="display:none">
-        <div>
-          <div class="card">
-            <div class="card-title">Equipment Record</div>
-            <div id="detail-record-table"></div>
-          </div>
-          <div class="card">
-            <div class="card-title">Inspection Summary</div>
-            <div id="detail-inspection-table"></div>
-          </div>
-        </div>
-        <div>
-          <div class="card">
-            <div class="card-title">Provenance Timeline</div>
-            <div id="detail-timeline" class="timeline"></div>
-            <div class="wf-note">Built from on-chain data across all 3 contracts filtered by equipmentId.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ SCREEN 7: ADMIN / ROLES ══════════════════════════════════════ -->
-    <div class="page" id="page-admin">
-      <div class="page-header">
-        <div class="page-title">Admin &amp; Role Management</div>
-        <div class="page-subtitle">Grant and revoke AccessControl roles on all three contracts — requires DEFAULT_ADMIN_ROLE</div>
-      </div>
-      <div class="role-banner absa">
-        <strong>Required role:</strong> DEFAULT_ADMIN_ROLE &nbsp;·&nbsp; Manage AccessControl roles on all contracts
-      </div>
-
-      <div class="two-col">
-        <div>
-          <div class="card">
-            <div class="card-title">Grant Role</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Contract</label>
-                <select id="grant-contract">
-                  <option value="registry">EquipmentRegistry</option>
-                  <option value="inspection">InspectionLog</option>
-                  <option value="transfer">OwnershipTransfer</option>
-                </select>
-              </div>
-              <div class="form-group full">
-                <label>Role</label>
-                <select id="grant-role">
-                  <option value="MANUFACTURER_ROLE">MANUFACTURER_ROLE</option>
-                  <option value="SCO_ROLE">SCO_ROLE</option>
-                  <option value="ABSA_ROLE">ABSA_ROLE</option>
-                  <option value="OPERATOR_ROLE">OPERATOR_ROLE</option>
-                  <option value="DEFAULT_ADMIN_ROLE">DEFAULT_ADMIN_ROLE</option>
-                </select>
-              </div>
-              <div class="form-group full">
-                <label>Address to Grant Role To *</label>
-                <input type="text" id="grant-address" placeholder="0x…"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="btn-grant" onclick="grantRole()">Grant Role</button>
-              <button class="btn btn-danger" id="btn-revoke" onclick="revokeRole()">Revoke Role</button>
-            </div>
-            <div class="wf-note">
-              Calls <code>grantRole(bytes32 role, address account)</code> on selected contract ·
-              requires DEFAULT_ADMIN_ROLE
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Check Role</div>
-            <div class="form-grid">
-              <div class="form-group full">
-                <label>Address to Check</label>
-                <input type="text" id="check-role-addr" placeholder="0x… (leave blank to check connected wallet)"/>
-              </div>
-            </div>
-            <div class="btn-row">
-              <button class="btn btn-secondary" onclick="checkAllRoles()">Check All Roles</button>
-            </div>
-            <div id="role-check-result" style="margin-top:12px"></div>
-          </div>
-        </div>
-
-        <div>
-          <div class="card">
-            <div class="card-title">Role Reference</div>
-            <table>
-              <thead><tr><th>Role</th><th>Permits</th></tr></thead>
-              <tbody>
-                <tr><td><code>MANUFACTURER_ROLE</code></td><td>Register equipment</td></tr>
-                <tr><td><code>SCO_ROLE</code></td><td>Sign shop inspection, log inspections</td></tr>
-                <tr><td><code>ABSA_ROLE</code></td><td>Issue certificates, activate equipment, check overdue, assign custody</td></tr>
-                <tr><td><code>OPERATOR_ROLE</code></td><td>Initiate custody transfers</td></tr>
-                <tr><td><code>DEFAULT_ADMIN_ROLE</code></td><td>Grant &amp; revoke all roles</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="card">
-            <div class="card-title">Connected Wallet Roles</div>
-            <div id="my-roles-display">
-              <div class="empty-state">Connect wallet to see your roles.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </main>
-</div>
-
-<!-- TOAST CONTAINER -->
-<div id="toast-container"></div>
-
-<!-- SETTINGS MODAL -->
-<div class="modal-overlay" id="settings-modal">
-  <div class="modal">
-    <div class="modal-title">⚙ Contract Settings</div>
-    <div class="modal-subtitle">Addresses are saved to your browser's localStorage — enter once and they persist.</div>
-    <div class="modal-hint">
-      ℹ️ <strong>Default addresses below are the live Sepolia deployment.</strong><br/>
-      Only change these if you have re-deployed the contracts yourself.<br/>
-      Deploy with: <code>npx hardhat run scripts/deploy.js --network sepolia</code>
-    </div>
-    <div class="modal-form-group">
-      <label>EquipmentRegistry Address</label>
-      <input type="text" id="cfg-registry" placeholder="0xBEcfeF2471a6e1BeDbD5B6dE8c3ef8626Da2e27c"/>
-    </div>
-    <div class="modal-form-group">
-      <label>InspectionLog Address</label>
-      <input type="text" id="cfg-inspection" placeholder="0xFaC9EECA2b0d4823581e36A2953B7990ABcae5B5"/>
-    </div>
-    <div class="modal-form-group">
-      <label>OwnershipTransfer Address</label>
-      <input type="text" id="cfg-transfer" placeholder="0x82544563e6dccA61aC59Bba0C7258A816B0F9708"/>
-    </div>
-    <div class="modal-btn-row">
-      <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save &amp; Connect</button>
-    </div>
-  </div>
-</div>
-
-<script>
-// ═══════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════
 // CONTRACT ABIs
 // ═══════════════════════════════════════════════════════════════════
 
@@ -678,6 +61,7 @@ const DEPLOYED = {
 const SEPOLIA_CHAIN_ID = 11155111;
 
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
+const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 // Role constants (keccak256 of role name strings)
 const ROLES = {
@@ -703,6 +87,15 @@ let userRoles = {
   isSCO: false,
   isABSA: false,
   isOperator: false
+};
+
+const PAGE_SIZE = 25;
+let dashState = {
+  data: [],            // array of { equip, compliant } for current page
+  sort: { col: 'id', dir: 'desc' },
+  filter: { status: '', compliance: '' },
+  page: 1,
+  total: 0
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -770,7 +163,45 @@ function updateAddressPreviews() {
 // WALLET CONNECTION
 // ═══════════════════════════════════════════════════════════════════
 
+function disconnectWallet() {
+  account = null;
+  provider = null;
+  signer = null;
+  networkId = null;
+  registryContract = null;
+  inspectionContract = null;
+  transferContract = null;
+  userRoles = { isAdmin: false, isManufacturer: false, isSCO: false, isABSA: false, isOperator: false };
+
+  document.getElementById('wallet-dot').classList.remove('connected');
+  document.getElementById('wallet-label').textContent = 'Connect Wallet';
+  const badge = document.getElementById('network-badge');
+  badge.style.display = 'none';
+  const chip = document.getElementById('balance-chip');
+  if (chip) chip.style.display = 'none';
+
+  dashState.data  = [];
+  dashState.total = 0;
+  dashState.page  = 1;
+  document.getElementById('dash-pagination').style.display = 'none';
+
+  updateDashboardBanner();
+  updateMyRolesDisplay();
+  document.getElementById('dash-table-container').innerHTML =
+    '<div class="empty-state">Connect your wallet and configure contract addresses to load equipment.</div>';
+  // Reset dashboard stats
+  ['stat-total','stat-compliant','stat-flags','stat-certified'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  document.getElementById('stat-total-sub').textContent = 'Connect wallet to load';
+  document.getElementById('stat-compliant-sub').textContent = '—';
+  toast('Wallet disconnected', 'info');
+  updateNavTabRoles();
+}
+
 async function connectWallet() {
+  if (account) { disconnectWallet(); return; }
+
   if (!window.ethereum) {
     toast('MetaMask not detected. Please install MetaMask.', 'error'); return;
   }
@@ -795,9 +226,14 @@ async function connectWallet() {
     updateDashboardBanner();
     updateAddressPreviews();
     loadDashboard();
+    loadRecentActivity();
 
   } catch (err) {
-    toast('Wallet connection failed: ' + (err.message || err), 'error');
+    if (isUserRejection(err)) {
+      toast('Connection request cancelled', 'warning');
+    } else {
+      toast('Wallet connection failed: ' + extractErrorMsg(err), 'error');
+    }
     document.getElementById('wallet-label').textContent = 'Connect Wallet';
   } finally {
     btn.disabled = false;
@@ -819,15 +255,19 @@ function updateWalletUI() {
       badge.className = 'network-badge wrong';
       toast('Please switch MetaMask to the Sepolia testnet', 'warning');
     }
+  } else {
+    badge.style.display = 'none';
   }
 
   // Show ETH balance
+  const chip = document.getElementById('balance-chip');
   if (account && provider) {
     provider.getBalance(account).then(bal => {
       const eth = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
-      const chip = document.getElementById('balance-chip');
       if (chip) { chip.textContent = eth + ' ETH'; chip.style.display = 'inline-block'; }
     }).catch(() => {});
+  } else if (chip) {
+    chip.style.display = 'none';
   }
 }
 
@@ -860,10 +300,12 @@ async function detectRoles() {
       registryContract.hasRole(ROLES.OPERATOR_ROLE, account)
     ]);
     userRoles = { isAdmin, isManufacturer: isMfg, isSCO, isABSA, isOperator: isOp };
-    updateMyRolesDisplay();
   } catch (err) {
     console.warn('Role detection failed:', err.message);
+    toast('Could not detect wallet roles — contract may be unreachable on this network.', 'warning');
   }
+  updateMyRolesDisplay();
+  updateNavTabRoles();
 }
 
 function updateDashboardBanner() {
@@ -882,106 +324,283 @@ function updateDashboardBanner() {
   else if (userRoles.isOperator){ cls = 'operator'; roleName = 'Operator'; }
 
   banner.className = `role-banner ${cls}`;
-  banner.innerHTML = `<strong>Connected role:</strong> ${roleName} &nbsp;·&nbsp;
-    <span class="hash">${account}</span>
-    &nbsp;·&nbsp; <span class="badge badge-active">Sepolia</span>`;
+  banner.innerHTML = `<strong>Connected role:</strong> ${escHtml(roleName)} &nbsp;·&nbsp;
+    <span class="hash">${escHtml(account)}</span>
+    &nbsp;·&nbsp; <span class="badge ${networkId === SEPOLIA_CHAIN_ID ? 'badge-active' : 'badge-flagged'}">${networkId === SEPOLIA_CHAIN_ID ? 'Sepolia' : 'Wrong Network'}</span>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
 
-async function loadDashboard() {
+async function loadDashboard(page) {
+  page = page || 1;
   if (!registryContract) {
     document.getElementById('dash-table-container').innerHTML =
       '<div class="empty-state">Configure contract addresses in Settings first.</div>';
+    document.getElementById('dash-pagination').style.display = 'none';
     return;
   }
 
+  setBtnLoading('btn-dash-refresh', true, 'Loading…');
   try {
     document.getElementById('dash-table-container').innerHTML =
       '<div class="loading-msg">Loading equipment data…</div>';
+    document.getElementById('dash-pagination').style.display = 'none';
 
     const count = await registryContract.equipmentCount();
     const total = count.toNumber();
+    dashState.total = total;
+    dashState.page  = page;
+
     document.getElementById('stat-total').textContent = total;
-    document.getElementById('stat-total-sub').textContent = `Total registered`;
+    document.getElementById('stat-total-sub').textContent = 'Total registered';
 
     if (total === 0) {
-      document.getElementById('stat-compliant').textContent = '0';
-      document.getElementById('stat-flags').textContent = '0';
-      document.getElementById('stat-certified').textContent = '0';
+      ['stat-compliant','stat-flags','stat-certified'].forEach(id =>
+        document.getElementById(id).textContent = '0'
+      );
+      document.getElementById('stat-compliant-sub').textContent = '—';
       document.getElementById('dash-table-container').innerHTML =
         '<div class="empty-state">No equipment registered yet.</div>';
       return;
     }
 
-    // Load all equipment (limit to last 100 for performance)
-    const startId = Math.max(1, total - 99);
+    // Compute page range (page 1 = most recent PAGE_SIZE items)
+    const endId   = total - (page - 1) * PAGE_SIZE;
+    const startId = Math.max(1, endId - PAGE_SIZE + 1);
+    if (endId < 1) { return loadDashboard(1); }
+
     const promises = [];
-    for (let i = startId; i <= total; i++) {
+    for (let i = startId; i <= endId; i++) {
       promises.push(registryContract.getEquipment(i));
     }
     const equipList = await Promise.all(promises);
 
-    let compliant = 0, flagged = 0, certified = 0;
     const compliancePromises = inspectionContract
       ? equipList.map(e => inspectionContract.isCompliant(e.equipmentId).catch(() => true))
       : equipList.map(() => Promise.resolve(true));
-
     const complianceResults = await Promise.all(compliancePromises);
 
-    equipList.forEach((e, i) => {
-      if (complianceResults[i]) compliant++; else flagged++;
-      if (e.status >= 2) certified++;
-    });
+    // Store data in dashState
+    dashState.data = equipList.map((e, i) => ({ equip: e, compliant: complianceResults[i] }));
 
-    document.getElementById('stat-compliant').textContent = compliant;
-    document.getElementById('stat-compliant-sub').textContent =
-      total > 0 ? `${((compliant/total)*100).toFixed(1)}% compliance rate` : '';
-    document.getElementById('stat-flags').textContent = flagged;
-    document.getElementById('stat-certified').textContent = certified;
-    document.getElementById('stat-total-sub').textContent = `Total registered`;
+    // Update stats (approximate from first page)
+    if (page === 1) {
+      let compliant = 0, flagged = 0, certified = 0;
+      equipList.forEach((e, i) => {
+        if (complianceResults[i]) compliant++; else flagged++;
+        if (e.status >= 2) certified++;
+      });
+      document.getElementById('stat-compliant').textContent = compliant;
+      document.getElementById('stat-compliant-sub').textContent =
+        equipList.length > 0 ? `${((compliant / equipList.length) * 100).toFixed(1)}% of displayed` : '—';
+      document.getElementById('stat-flags').textContent = flagged;
+      document.getElementById('stat-certified').textContent = certified;
+    }
 
-    // Render table (most recent first)
-    const rows = [...equipList].reverse().map((e, i) => {
-      const compliance = complianceResults[equipList.length - 1 - i];
-      return `<tr>
-        <td><strong>${e.equipmentId.toString()}</strong></td>
-        <td>${escHtml(e.crn)}</td>
-        <td>${statusBadge(e.status)}</td>
-        <td>${compliance ? '<span class="badge badge-compliant">✓ Compliant</span>' : '<span class="badge badge-flagged">⚠ Flagged</span>'}</td>
-        <td>${e.mawp.toString()} kPa</td>
-        <td>${addrLink(e.manufacturer)}</td>
-        <td>${tsToDate(e.registeredAt.toNumber())}</td>
-        <td>
-          <button class="btn btn-secondary btn-sm" onclick="quickDetail(${e.equipmentId.toString()})">View</button>
-        </td>
-      </tr>`;
-    }).join('');
-
-    document.getElementById('dash-table-container').innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th><th>CRN</th><th>Status</th><th>Compliance</th>
-            <th>MAWP</th><th>Manufacturer</th><th>Registered</th><th></th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+    renderDashTable();
+    updateDashPagination(total, page);
 
   } catch (err) {
     document.getElementById('dash-table-container').innerHTML =
       `<div class="empty-state">Error loading data: ${escHtml(err.message)}</div>`;
     toast('Dashboard load error: ' + err.message, 'error');
+  } finally {
+    setBtnLoading('btn-dash-refresh', false, '↺ Refresh');
   }
 }
 
 async function searchEquipment() {
-  const id = document.getElementById('dash-search-id').value;
-  if (!id) { loadDashboard(); return; }
-  quickDetail(parseInt(id));
+  const query = document.getElementById('dash-search-input').value.trim();
+  if (!query) { loadDashboard(); return; }
+
+  // If purely numeric, jump straight to detail
+  if (/^\d+$/.test(query) && parseInt(query, 10) > 0) {
+    quickDetail(parseInt(query, 10));
+    return;
+  }
+
+  // Search across loaded data by CRN, A-Number, or manufacturer address
+  if (!registryContract) { toast('Connect wallet and configure contracts first', 'warning'); return; }
+
+  setBtnLoading('btn-dash-search', true, 'Searching…');
+  try {
+    const count = await registryContract.equipmentCount();
+    const total = count.toNumber();
+    if (total === 0) { toast('No equipment registered', 'info'); return; }
+
+    const lowerQuery = query.toLowerCase();
+    const batchSize = Math.min(total, 100);
+    const promises = [];
+    for (let i = 1; i <= batchSize; i++) {
+      promises.push(registryContract.getEquipment(i));
+    }
+    const allEquip = await Promise.all(promises);
+
+    const matches = allEquip.filter(e =>
+      e.crn.toLowerCase().includes(lowerQuery) ||
+      (e.aNumber && e.aNumber.toLowerCase().includes(lowerQuery)) ||
+      e.manufacturer.toLowerCase().includes(lowerQuery)
+    );
+
+    if (matches.length === 0) {
+      toast(`No equipment matches "${query}"`, 'info');
+      return;
+    }
+    if (matches.length === 1) {
+      quickDetail(matches[0].equipmentId.toNumber());
+      return;
+    }
+
+    // Multiple matches — display them in the dashboard table
+    const compliancePromises = inspectionContract
+      ? matches.map(e => inspectionContract.isCompliant(e.equipmentId).catch(() => true))
+      : matches.map(() => Promise.resolve(true));
+    const complianceResults = await Promise.all(compliancePromises);
+
+    dashState.data = matches.map((e, i) => ({ equip: e, compliant: complianceResults[i] }));
+    dashState.total = matches.length;
+    dashState.page = 1;
+    renderDashTable();
+    document.getElementById('dash-pagination').style.display = 'none';
+    toast(`Found ${matches.length} results for "${query}"`, 'success');
+  } catch (err) {
+    toast('Search failed: ' + extractErrorMsg(err), 'error');
+  } finally {
+    setBtnLoading('btn-dash-search', false, 'Search');
+  }
+}
+
+function makeSortTh(c, label) {
+  let cls = 'sortable';
+  if (dashState.sort.col === c) cls += dashState.sort.dir === 'asc' ? ' sort-asc' : ' sort-desc';
+  return `<th class="${cls}" onclick="sortDash('${c}')" tabindex="0" onkeydown="if(event.key==='Enter')sortDash('${c}')">${label}</th>`;
+}
+
+function renderDashTable() {
+  let data = [...dashState.data];
+
+  // Apply filters
+  const { status, compliance } = dashState.filter;
+  if (status !== '') {
+    data = data.filter(d => d.equip.status === parseInt(status, 10));
+  }
+  if (compliance === 'compliant') {
+    data = data.filter(d => d.compliant);
+  } else if (compliance === 'flagged') {
+    data = data.filter(d => !d.compliant);
+  }
+
+  // Apply sort
+  const { col, dir } = dashState.sort;
+  data.sort((a, b) => {
+    let av, bv;
+    if      (col === 'id')         { av = a.equip.equipmentId.toNumber(); bv = b.equip.equipmentId.toNumber(); }
+    else if (col === 'crn')        { av = a.equip.crn;                    bv = b.equip.crn; }
+    else if (col === 'status')     { av = a.equip.status;                 bv = b.equip.status; }
+    else if (col === 'mawp')       { av = a.equip.mawp.toNumber();        bv = b.equip.mawp.toNumber(); }
+    else if (col === 'date')       { av = a.equip.registeredAt.toNumber(); bv = b.equip.registeredAt.toNumber(); }
+    else if (col === 'compliance') { av = a.compliant ? 1 : 0;            bv = b.compliant ? 1 : 0; }
+    else return 0;
+    if (typeof av === 'string') return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+
+  if (data.length === 0) {
+    document.getElementById('dash-table-container').innerHTML =
+      '<div class="empty-state">No equipment matches the selected filters.</div>';
+    return;
+  }
+
+  const rows = data.map(({ equip: e, compliant }) => `<tr>
+    <td><strong>${e.equipmentId.toString()}</strong></td>
+    <td>${escHtml(e.crn)}</td>
+    <td>${statusBadge(e.status)}</td>
+    <td>${compliant
+      ? '<span class="badge badge-compliant">✓ Compliant</span>'
+      : '<span class="badge badge-flagged">⚠ Flagged</span>'}</td>
+    <td>${e.mawp.toString()} kPa</td>
+    <td>${addrLink(e.manufacturer)}</td>
+    <td>${tsToDate(e.registeredAt.toNumber())}</td>
+    <td><button class="btn btn-secondary btn-sm" onclick="quickDetail(${e.equipmentId.toString()})"
+        aria-label="View details for equipment ${e.equipmentId.toString()}">View</button></td>
+  </tr>`).join('');
+
+  document.getElementById('dash-table-container').innerHTML = `
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          ${makeSortTh('id', 'ID')}
+          ${makeSortTh('crn', 'CRN')}
+          ${makeSortTh('status', 'Status')}
+          ${makeSortTh('compliance', 'Compliance')}
+          ${makeSortTh('mawp', 'MAWP')}
+          <th>Manufacturer</th>
+          ${makeSortTh('date', 'Registered')}
+          <th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function sortDash(col) {
+  dashState.sort.dir = dashState.sort.col === col && dashState.sort.dir === 'desc' ? 'asc' : 'desc';
+  dashState.sort.col = col;
+  renderDashTable();
+}
+
+function applyDashFilters() {
+  dashState.filter.status     = document.getElementById('dash-filter-status').value;
+  dashState.filter.compliance = document.getElementById('dash-filter-compliance').value;
+  renderDashTable();
+}
+
+function clearDashFilters() {
+  dashState.filter = { status: '', compliance: '' };
+  document.getElementById('dash-filter-status').value     = '';
+  document.getElementById('dash-filter-compliance').value = '';
+  renderDashTable();
+}
+
+function updateDashPagination(total, page) {
+  const maxPage = Math.ceil(total / PAGE_SIZE);
+  const container = document.getElementById('dash-pagination');
+  if (maxPage <= 1) { container.style.display = 'none'; return; }
+  container.style.display = 'flex';
+  container.innerHTML =
+    `<button class="btn btn-secondary btn-sm" onclick="loadDashboard(${page - 1})" ${page <= 1 ? 'disabled' : ''} aria-label="Previous page">← Prev</button>
+     <span class="page-info">Page ${page} of ${maxPage} &nbsp;·&nbsp; ${total} total</span>
+     <button class="btn btn-secondary btn-sm" onclick="loadDashboard(${page + 1})" ${page >= maxPage ? 'disabled' : ''} aria-label="Next page">Next →</button>`;
+}
+
+function exportCSV() {
+  if (!dashState.data.length) { toast('No data loaded to export', 'warning'); return; }
+
+  // Apply current filters so the CSV matches what the user sees
+  let data = [...dashState.data];
+  const { status, compliance } = dashState.filter;
+  if (status !== '') data = data.filter(d => d.equip.status === parseInt(status, 10));
+  if (compliance === 'compliant') data = data.filter(d => d.compliant);
+  else if (compliance === 'flagged') data = data.filter(d => !d.compliant);
+  if (!data.length) { toast('No data matches the current filters', 'warning'); return; }
+
+  const header = ['ID', 'CRN', 'A-Number', 'MAWP (kPa)', 'Status', 'Compliant', 'Manufacturer', 'Registered'];
+  const rows = data.map(({ equip: e, compliant }) =>
+    [e.equipmentId.toString(), e.crn, e.aNumber || '', e.mawp.toString(),
+     statusLabel(e.status), compliant ? 'Yes' : 'No', e.manufacturer, tsToDate(e.registeredAt.toNumber())]
+    .map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  );
+  const csv  = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `ironledger-equipment-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV exported!', 'success');
 }
 
 function quickDetail(id) {
@@ -995,7 +614,7 @@ function quickDetail(id) {
 // ═══════════════════════════════════════════════════════════════════
 
 async function registerEquipment() {
-  if (!ensureConnected() || !ensureContract('registry')) return;
+  if (!ensureConnected() || !ensureContract('registry') || !ensureNetwork()) return;
 
   const crn     = document.getElementById('reg-crn').value.trim();
   const mdrText = document.getElementById('reg-mdr-text').value.trim();
@@ -1003,7 +622,7 @@ async function registerEquipment() {
   const mawp    = document.getElementById('reg-mawp').value.trim();
 
   if (!crn)  { toast('CRN is required', 'error'); return; }
-  if (!mawp) { toast('MAWP is required', 'error'); return; }
+  if (!mawp || parseInt(mawp, 10) <= 0 || isNaN(parseInt(mawp, 10))) { toast('MAWP must be a positive number greater than 0', 'error'); return; }
   if (!mdrText && !mdrRaw) { toast('MDR document text or hash is required', 'error'); return; }
 
   let mdrHash;
@@ -1033,20 +652,20 @@ async function registerEquipment() {
       <div class="gate-row gate-pass">
         <div class="gate-icon">✅</div>
         <div>
-          <div class="gate-label">Equipment Registered &mdash; ID: <strong>#${newId}</strong></div>
-          <div class="gate-sub">CRN: ${escHtml(crn)} &nbsp;&middot;&nbsp; MAWP: ${mawp} kPa</div>
+          <div class="gate-label">Equipment Registered &mdash; ID: <strong>#${escHtml(newId)}</strong></div>
+          <div class="gate-sub">CRN: ${escHtml(crn)} &nbsp;&middot;&nbsp; MAWP: ${escHtml(mawp)} kPa</div>
         </div>
       </div>
       <div style="margin-top:12px;font-size:12px;line-height:2">
         <strong>Transaction:</strong>
-        <a class="tx-link" href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank" rel="noopener">
+        <a class="tx-link" href="https://sepolia.etherscan.io/tx/${encodeURIComponent(tx.hash)}" target="_blank" rel="noopener noreferrer">
           ${shortAddr(tx.hash)} ↗
         </a>
-        <button class="copy-btn" onclick="copyText('${tx.hash}', this)" title="Copy tx hash">📋</button><br/>
+        <button class="copy-btn" data-copy="${escHtml(tx.hash)}" onclick="copyText(this.dataset.copy, this)" title="Copy tx hash">📋</button><br/>
         <strong>MDR Hash:</strong>
-        <span class="hash" title="${mdrHash}">${mdrHash.slice(0,12)}…${mdrHash.slice(-8)}</span>
-        <button class="copy-btn" onclick="copyText('${mdrHash}', this)" title="Copy MDR hash">📋</button><br/>
-        <strong>Next step:</strong> <a href="#" onclick="document.getElementById('sco-equip-id').value='${newId}';showPage('certificate');return false;">Sign Shop Inspection →</a>
+        <span class="hash" title="${escHtml(mdrHash)}">${escHtml(mdrHash.slice(0,12))}…${escHtml(mdrHash.slice(-8))}</span>
+        <button class="copy-btn" data-copy="${escHtml(mdrHash)}" onclick="copyText(this.dataset.copy, this)" title="Copy MDR hash">📋</button><br/>
+        <strong>Next step:</strong> <a href="#" onclick="document.getElementById('sco-equip-id').value='${escHtml(newId)}';showPage('certificate');return false;">Sign Shop Inspection →</a>
       </div>
       <div class="status-steps" style="margin-top:14px">
         <div class="status-step done"><div class="step-circle">✓</div><div class="step-label">Registered</div></div>
@@ -1058,11 +677,18 @@ async function registerEquipment() {
     toast(`Equipment registered! ID: ${newId}`, 'success');
     loadDashboard();
   } catch (err) {
-    toast('Registration failed: ' + extractErrorMsg(err), 'error');
-    document.getElementById('reg-result-box').innerHTML =
-      `<div class="gate-row gate-fail"><div class="gate-icon">✗</div>
-       <div><div class="gate-label">Transaction Failed</div>
-       <div class="gate-sub">${escHtml(extractErrorMsg(err))}</div></div></div>`;
+    if (isUserRejection(err)) {
+      toast('Transaction cancelled', 'warning');
+      document.getElementById('reg-result-box').innerHTML =
+        '<div class="empty-state">Registration cancelled — no transaction was sent.</div>';
+    } else {
+      const msg = extractErrorMsg(err);
+      toast('Registration failed: ' + msg, 'error');
+      document.getElementById('reg-result-box').innerHTML =
+        `<div class="gate-row gate-fail"><div class="gate-icon">✗</div>
+         <div><div class="gate-label">Transaction Failed</div>
+         <div class="gate-sub">${escHtml(msg)}</div></div></div>`;
+    }
   } finally {
     setBtnLoading('btn-register', false, 'Register Equipment');
   }
@@ -1071,6 +697,7 @@ async function registerEquipment() {
 function clearRegisterForm() {
   ['reg-crn','reg-mdr-text','reg-mdr-hash','reg-mawp'].forEach(id => {
     document.getElementById(id).value = '';
+    sessionStorage.removeItem(`il_form_${id}`);
   });
   document.getElementById('reg-result-box').innerHTML =
     '<div class="empty-state">Register equipment to see result here.</div>';
@@ -1082,14 +709,14 @@ function clearRegisterForm() {
 // ═══════════════════════════════════════════════════════════════════
 
 async function logInspection() {
-  if (!ensureConnected() || !ensureContract('inspection')) return;
+  if (!ensureConnected() || !ensureContract('inspection') || !ensureNetwork()) return;
 
   const equipId   = document.getElementById('insp-equip-id').value.trim();
   const result    = document.getElementById('insp-result').value;
   const notesText = document.getElementById('insp-notes-text').value.trim();
   const notesRaw  = document.getElementById('insp-notes-hash').value.trim();
 
-  if (!equipId) { toast('Equipment ID is required', 'error'); return; }
+  if (!equipId || !/^\d+$/.test(equipId) || parseInt(equipId, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
   if (!notesText && !notesRaw) { toast('Inspection notes or hash is required', 'error'); return; }
 
   let notesHash;
@@ -1105,7 +732,7 @@ async function logInspection() {
   try {
     setBtnLoading('btn-loginsp', true, 'Sending…');
     const tx = await inspectionContract.logInspection(
-      ethers.BigNumber.from(equipId), parseInt(result), notesHash
+      ethers.BigNumber.from(equipId), parseInt(result, 10), notesHash
     );
     toast(`Transaction sent: ${shortAddr(tx.hash)}`, 'info');
     await tx.wait();
@@ -1114,7 +741,8 @@ async function logInspection() {
     document.getElementById('insp-history-id').value = equipId;
     loadInspectionHistory();
   } catch (err) {
-    toast('Log inspection failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Log inspection failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-loginsp', false, 'Sign & Log Inspection');
   }
@@ -1123,6 +751,7 @@ async function logInspection() {
 function clearInspectForm() {
   ['insp-equip-id','insp-notes-text','insp-notes-hash'].forEach(id => {
     document.getElementById(id).value = '';
+    sessionStorage.removeItem(`il_form_${id}`);
   });
   document.getElementById('insp-result').value = '0';
 }
@@ -1130,7 +759,10 @@ function clearInspectForm() {
 async function checkCompliance() {
   if (!ensureContract('inspection')) return;
   const id = document.getElementById('compliance-check-id').value.trim();
-  if (!id) { toast('Enter Equipment ID', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
+
+  const res = document.getElementById('compliance-result');
+  res.innerHTML = '<div class="loading-msg" style="padding:12px 0"><span class="spinner" style="border-top-color:var(--brand-light)"></span> Checking compliance…</div>';
 
   try {
     const [compliant, flagged] = await Promise.all([
@@ -1138,19 +770,19 @@ async function checkCompliance() {
       inspectionContract.complianceFlag(ethers.BigNumber.from(id))
     ]);
 
-    const res = document.getElementById('compliance-result');
     if (compliant) {
       res.innerHTML = `<div class="gate-row gate-pass">
         <div class="gate-icon">✓</div>
-        <div><div class="gate-label">Equipment #${id} — Compliant</div>
+        <div><div class="gate-label">Equipment #${escHtml(id)} — Compliant</div>
         <div class="gate-sub">No active compliance flags · eligible for transfer</div></div></div>`;
     } else {
       res.innerHTML = `<div class="gate-row gate-fail">
         <div class="gate-icon">✗</div>
-        <div><div class="gate-label">Equipment #${id} — Non-Compliant</div>
+        <div><div class="gate-label">Equipment #${escHtml(id)} — Non-Compliant</div>
         <div class="gate-sub">Active flag: ${flagged} · Transfer blocked</div></div></div>`;
     }
   } catch (err) {
+    res.innerHTML = '';
     toast('Compliance check failed: ' + extractErrorMsg(err), 'error');
   }
 }
@@ -1158,7 +790,9 @@ async function checkCompliance() {
 async function checkOverdue() {
   if (!ensureConnected() || !ensureContract('inspection')) return;
   const id = document.getElementById('compliance-check-id').value.trim();
-  if (!id) { toast('Enter Equipment ID', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
+
+  if (!confirm(`Flag Equipment #${id} as overdue?\nThis will set a compliance flag on-chain and block transfers until resolved.`)) return;
 
   try {
     setBtnLoading('btn-checkoverdue', true, 'Checking…');
@@ -1168,7 +802,8 @@ async function checkOverdue() {
     toast('Overdue check completed', 'success');
     checkCompliance();
   } catch (err) {
-    toast('Check overdue failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Check overdue failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-checkoverdue', false, 'Check Overdue (ABSA)');
   }
@@ -1177,13 +812,26 @@ async function checkOverdue() {
 async function loadInspectionHistory() {
   if (!ensureContract('inspection')) return;
   const id = document.getElementById('insp-history-id').value.trim();
-  if (!id) { toast('Enter Equipment ID', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
 
-  const container = document.getElementById('insp-history-container');
+  const container    = document.getElementById('insp-history-container');
+  const intervalInfo = document.getElementById('insp-interval-info');
   container.innerHTML = '<div class="loading-msg">Loading…</div>';
+  intervalInfo.style.display = 'none';
 
   try {
-    const records = await inspectionContract.getInspectionHistory(ethers.BigNumber.from(id));
+    const [records, interval] = await Promise.all([
+      inspectionContract.getInspectionHistory(ethers.BigNumber.from(id)),
+      inspectionContract.inspectionInterval().catch(() => null)
+    ]);
+
+    if (interval) {
+      const days = Math.floor(interval.toNumber() / 86400);
+      const hrs  = Math.floor((interval.toNumber() % 86400) / 3600);
+      intervalInfo.textContent = `⏱ Inspection interval: ${days} day${days !== 1 ? 's' : ''}${hrs > 0 ? (' ' + hrs + 'h') : ''}`;
+      intervalInfo.style.display = 'block';
+    }
+
     if (records.length === 0) {
       container.innerHTML = '<div class="empty-state">No inspections logged for this equipment.</div>';
       return;
@@ -1195,9 +843,9 @@ async function loadInspectionHistory() {
         <td>${tsToDate(r.inspectedAt.toNumber())}</td>
         <td><span class="hash">${shortAddr(r.inspector)}</span></td>
         <td>${r.result === 0
-          ? '<span class="badge badge-compliant">Pass</span>'
-          : '<span class="badge badge-flagged">Fail</span>'}</td>
-        <td><span class="hash" title="${r.notesHash}">${r.notesHash.slice(0,10)}…</span></td>
+          ? '<span class="badge badge-compliant">✓ Pass</span>'
+          : '<span class="badge badge-flagged">✗ Fail</span>'}</td>
+        <td><span class="hash" title="${escHtml(r.notesHash)}">${escHtml(r.notesHash.slice(0,10))}…</span></td>
       </tr>`).join('');
 
     container.innerHTML = `
@@ -1215,9 +863,9 @@ async function loadInspectionHistory() {
 // ═══════════════════════════════════════════════════════════════════
 
 async function signShopInspection() {
-  if (!ensureConnected() || !ensureContract('registry')) return;
+  if (!ensureConnected() || !ensureContract('registry') || !ensureNetwork()) return;
   const id = document.getElementById('sco-equip-id').value.trim();
-  if (!id) { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
 
   try {
     setBtnLoading('btn-shopsign', true, 'Sending…');
@@ -1228,18 +876,19 @@ async function signShopInspection() {
     document.getElementById('cert-lookup-id').value = id;
     loadCertEquipment();
   } catch (err) {
-    toast('Sign shop inspection failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Sign shop inspection failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-shopsign', false, 'Sign Shop Inspection');
   }
 }
 
 async function issueCertificate() {
-  if (!ensureConnected() || !ensureContract('registry')) return;
+  if (!ensureConnected() || !ensureContract('registry') || !ensureNetwork()) return;
   const id      = document.getElementById('cert-equip-id').value.trim();
   const aNumber = document.getElementById('cert-anumber').value.trim();
 
-  if (!id)      { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
   if (!aNumber) { toast('A-Number is required', 'error'); return; }
 
   try {
@@ -1251,16 +900,17 @@ async function issueCertificate() {
     document.getElementById('cert-lookup-id').value = id;
     loadCertEquipment();
   } catch (err) {
-    toast('Issue certificate failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Issue certificate failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-issuecert', false, 'Issue Certificate');
   }
 }
 
 async function activateEquipment() {
-  if (!ensureConnected() || !ensureContract('registry')) return;
+  if (!ensureConnected() || !ensureContract('registry') || !ensureNetwork()) return;
   const id = document.getElementById('activate-equip-id').value.trim();
-  if (!id) { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
 
   try {
     setBtnLoading('btn-activate', true, 'Sending…');
@@ -1271,7 +921,8 @@ async function activateEquipment() {
     document.getElementById('cert-lookup-id').value = id;
     loadCertEquipment();
   } catch (err) {
-    toast('Activate equipment failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Activate equipment failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-activate', false, 'Activate Equipment');
   }
@@ -1280,16 +931,18 @@ async function activateEquipment() {
 async function loadCertPrecheck() {
   if (!ensureContract('registry')) return;
   const id = document.getElementById('cert-equip-id').value.trim();
-  if (!id) return;
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
+
+  const container = document.getElementById('cert-gate-check');
+  container.innerHTML = '<div class="loading-msg" style="padding:8px 0">Checking pre-conditions…</div>';
 
   try {
     const equip = await registryContract.getEquipment(ethers.BigNumber.from(id));
     const s = equip.status;
-    const container = document.getElementById('cert-gate-check');
     container.innerHTML = `
       <div class="section-label">Pre-conditions</div>
-      <div class="gate-row ${s >= 0 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
-        <div class="gate-icon">${s >= 0 ? '✓' : '✗'}</div>
+      <div class="gate-row ${equip.registeredAt.toNumber() > 0 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
+        <div class="gate-icon">${equip.registeredAt.toNumber() > 0 ? '✓' : '✗'}</div>
         <div><div class="gate-label">Equipment Registered</div><div class="gate-sub">Status: ${statusLabel(s)}</div></div>
       </div>
       <div class="gate-row ${s >= 1 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
@@ -1298,11 +951,12 @@ async function loadCertPrecheck() {
         <div class="gate-sub">${s >= 1 ? `SCO: ${shortAddr(equip.shopInspector)}` : 'Awaiting SCO sign-off'}</div></div>
       </div>
       <div class="gate-row ${s < 2 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:0">
-        <div class="gate-icon">${s < 2 ? '○' : '✓'}</div>
+        <div class="gate-icon">${s < 2 ? '✓' : '✗'}</div>
         <div><div class="gate-label">Certificate Not Yet Issued</div>
         <div class="gate-sub">${s < 2 ? 'Ready to issue' : 'Already issued — ' + escHtml(equip.aNumber)}</div></div>
       </div>`;
   } catch (err) {
+    container.innerHTML = '';
     toast('Failed to load equipment: ' + extractErrorMsg(err), 'error');
   }
 }
@@ -1310,7 +964,7 @@ async function loadCertPrecheck() {
 async function loadCertEquipment() {
   if (!ensureContract('registry')) return;
   const id = document.getElementById('cert-lookup-id').value.trim();
-  if (!id) return;
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) return;
 
   const container = document.getElementById('cert-equip-summary');
   container.innerHTML = '<div class="loading-msg">Loading…</div>';
@@ -1328,11 +982,11 @@ async function loadCertEquipment() {
 // ═══════════════════════════════════════════════════════════════════
 
 async function assignInitialCustody() {
-  if (!ensureConnected() || !ensureContract('transfer')) return;
+  if (!ensureConnected() || !ensureContract('transfer') || !ensureNetwork()) return;
   const id       = document.getElementById('custody-equip-id').value.trim();
   const operator = document.getElementById('custody-operator').value.trim();
 
-  if (!id)       { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
   if (!operator) { toast('Operator address is required', 'error'); return; }
   if (!ethers.utils.isAddress(operator)) { toast('Invalid operator address', 'error'); return; }
 
@@ -1345,7 +999,8 @@ async function assignInitialCustody() {
     document.getElementById('xfer-history-id').value = id;
     loadTransferHistory();
   } catch (err) {
-    toast('Assign custody failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Assign custody failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-custody', false, 'Assign Custody');
   }
@@ -1354,7 +1009,7 @@ async function assignInitialCustody() {
 async function loadTransferGate() {
   if (!transferContract || !inspectionContract) return;
   const id = document.getElementById('xfer-equip-id').value.trim();
-  if (!id) return;
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) return;
 
   const container = document.getElementById('transfer-gate-check');
   try {
@@ -1381,18 +1036,20 @@ async function loadTransferGate() {
         <div class="gate-sub">Current owner: ${shortAddr(owner)}</div></div>
       </div>`;
   } catch (err) {
-    container.innerHTML = `<div style="font-size:12px;color:#888">Could not load gate check: ${escHtml(err.message)}</div>`;
+    container.innerHTML = `<div style="font-size:12px;color:var(--text-muted)">Could not load gate check: ${escHtml(err.message)}</div>`;
   }
 }
 
 async function initiateTransfer() {
-  if (!ensureConnected() || !ensureContract('transfer')) return;
+  if (!ensureConnected() || !ensureContract('transfer') || !ensureNetwork()) return;
   const id = document.getElementById('xfer-equip-id').value.trim();
   const to = document.getElementById('xfer-to').value.trim();
 
-  if (!id) { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
   if (!to) { toast('To address is required', 'error'); return; }
   if (!ethers.utils.isAddress(to)) { toast('Invalid to address', 'error'); return; }
+  if (to === ZERO_ADDR) { toast('Cannot transfer to the zero address', 'error'); return; }
+  if (account && to.toLowerCase() === account.toLowerCase()) { toast('Cannot transfer to your own address', 'error'); return; }
 
   try {
     setBtnLoading('btn-initxfer', true, 'Sending…');
@@ -1405,7 +1062,8 @@ async function initiateTransfer() {
     document.getElementById('xfer-complete-id').value = id;
     loadPendingTransfer();
   } catch (err) {
-    toast('Initiate transfer failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Initiate transfer failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-initxfer', false, 'Initiate Transfer');
   }
@@ -1414,13 +1072,13 @@ async function initiateTransfer() {
 async function loadPendingTransfer() {
   if (!transferContract) return;
   const id = document.getElementById('xfer-complete-id').value.trim();
-  if (!id) return;
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) return;
 
   const container = document.getElementById('pending-transfer-info');
   try {
     const pending = await transferContract.getPendingTransfer(ethers.BigNumber.from(id));
     if (pending === ZERO_ADDR) {
-      container.innerHTML = `<div style="font-size:12px;color:#888">No pending transfer for Equipment #${id}</div>`;
+      container.innerHTML = `<div style="font-size:12px;color:var(--text-muted)">No pending transfer for Equipment #${id}</div>`;
     } else {
       container.innerHTML = `<div class="gate-row gate-pass">
         <div class="gate-icon">⏳</div>
@@ -1429,14 +1087,14 @@ async function loadPendingTransfer() {
       </div>`;
     }
   } catch (err) {
-    container.innerHTML = `<div style="font-size:12px;color:#888">Error: ${escHtml(err.message)}</div>`;
+    container.innerHTML = `<div style="font-size:12px;color:var(--text-muted)">Error: ${escHtml(err.message)}</div>`;
   }
 }
 
 async function completeTransfer() {
-  if (!ensureConnected() || !ensureContract('transfer')) return;
+  if (!ensureConnected() || !ensureContract('transfer') || !ensureNetwork()) return;
   const id = document.getElementById('xfer-complete-id').value.trim();
-  if (!id) { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
 
   try {
     setBtnLoading('btn-completexfer', true, 'Sending…');
@@ -1448,16 +1106,19 @@ async function completeTransfer() {
     loadTransferHistory();
     loadPendingTransfer();
   } catch (err) {
-    toast('Complete transfer failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Complete transfer failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-completexfer', false, 'Complete Transfer');
   }
 }
 
 async function cancelTransfer() {
-  if (!ensureConnected() || !ensureContract('transfer')) return;
+  if (!ensureConnected() || !ensureContract('transfer') || !ensureNetwork()) return;
   const id = document.getElementById('xfer-complete-id').value.trim();
-  if (!id) { toast('Equipment ID is required', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
+
+  if (!confirm(`Cancel the pending transfer for Equipment #${id}?\nThis action cannot be undone.`)) return;
 
   try {
     setBtnLoading('btn-cancelxfer', true, 'Sending…');
@@ -1468,7 +1129,8 @@ async function cancelTransfer() {
     loadPendingTransfer();
     loadTransferHistory();
   } catch (err) {
-    toast('Cancel transfer failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Cancel transfer failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-cancelxfer', false, 'Cancel Transfer');
   }
@@ -1477,7 +1139,7 @@ async function cancelTransfer() {
 async function loadTransferHistory() {
   if (!ensureContract('transfer')) return;
   const id = document.getElementById('xfer-history-id').value.trim();
-  if (!id) { toast('Enter Equipment ID', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
 
   const container = document.getElementById('xfer-history-container');
   container.innerHTML = '<div class="loading-msg">Loading…</div>';
@@ -1513,8 +1175,11 @@ async function loadTransferHistory() {
 
 async function loadEquipmentDetail() {
   const id = document.getElementById('detail-search-id').value.trim();
-  if (!id) { toast('Enter Equipment ID', 'error'); return; }
+  if (!id || !/^\d+$/.test(id) || parseInt(id, 10) <= 0) { toast('Enter a valid positive Equipment ID', 'error'); return; }
   if (!ensureContract('registry')) return;
+
+  // Persist last searched ID across tab navigations
+  sessionStorage.setItem('il_last_detail_id', id);
 
   document.getElementById('detail-stats').style.display = 'none';
   document.getElementById('detail-content').style.display = 'none';
@@ -1540,12 +1205,12 @@ async function loadEquipmentDetail() {
       : '<span class="badge badge-flagged" style="font-size:14px;padding:5px 14px">Flagged</span>';
     document.getElementById('detail-stat-flag').textContent = flagged ? 'Active compliance flag' : 'No active flags';
 
-  document.getElementById('detail-stat-owner').textContent = owner === ZERO_ADDR ? 'Not assigned' : owner;
-  document.getElementById('detail-stat-owner').title = owner;
-  const lastXfer = transfers.length ? tsToDate(transfers[transfers.length-1].transferredAt.toNumber()) : '';
-  document.getElementById('detail-stat-owner-since').textContent = lastXfer ? `Since ${lastXfer}` : (owner !== ZERO_ADDR ? 'Initial custody' : '');
+    document.getElementById('detail-stat-owner').textContent = owner === ZERO_ADDR ? 'Not assigned' : owner;
+    document.getElementById('detail-stat-owner').title = owner;
+    const lastXfer = transfers.length ? tsToDate(transfers[transfers.length-1].transferredAt.toNumber()) : '';
+    document.getElementById('detail-stat-owner-since').textContent = lastXfer ? `Since ${lastXfer}` : (owner !== ZERO_ADDR ? 'Initial custody' : '');
 
-  document.getElementById('detail-stats').style.display = 'grid';
+    document.getElementById('detail-stats').style.display = 'grid';
 
     // Equipment record
     document.getElementById('detail-record-table').innerHTML = equipmentTable(equip);
@@ -1561,8 +1226,8 @@ async function loadEquipmentDetail() {
           <td>${tsToDate(r.inspectedAt.toNumber())}</td>
           <td><span class="hash">${shortAddr(r.inspector)}</span></td>
           <td>${r.result === 0
-            ? '<span class="badge badge-compliant">Pass</span>'
-            : '<span class="badge badge-flagged">Fail</span>'}</td>
+            ? '<span class="badge badge-compliant">✓ Pass</span>'
+            : '<span class="badge badge-flagged">✗ Fail</span>'}</td>
         </tr>`).join('');
       document.getElementById('detail-inspection-table').innerHTML = `
         <table><thead><tr><th>#</th><th>Date</th><th>Inspector</th><th>Result</th></tr></thead>
@@ -1660,7 +1325,7 @@ function buildTimeline(equip, inspections, transfers, currentOwner) {
 // ═══════════════════════════════════════════════════════════════════
 
 async function grantRole() {
-  if (!ensureConnected()) return;
+  if (!ensureConnected() || !ensureNetwork()) return;
   const contractKey = document.getElementById('grant-contract').value;
   const roleName    = document.getElementById('grant-role').value;
   const address     = document.getElementById('grant-address').value.trim();
@@ -1681,14 +1346,15 @@ async function grantRole() {
     toast(`${roleName} granted to ${shortAddr(address)}!`, 'success');
     checkAllRoles();
   } catch (err) {
-    toast('Grant role failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Grant role failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-grant', false, 'Grant Role');
   }
 }
 
 async function revokeRole() {
-  if (!ensureConnected()) return;
+  if (!ensureConnected() || !ensureNetwork()) return;
   const contractKey = document.getElementById('grant-contract').value;
   const roleName    = document.getElementById('grant-role').value;
   const address     = document.getElementById('grant-address').value.trim();
@@ -1696,6 +1362,8 @@ async function revokeRole() {
   if (!address || !ethers.utils.isAddress(address)) {
     toast('Valid Ethereum address is required', 'error'); return;
   }
+
+  if (!confirm(`Revoke ${roleName} from ${shortAddr(address)} on ${contractKey}?\nThis will take effect on-chain and costs gas.`)) return;
 
   const contract = getAdminContract(contractKey);
   if (!contract) { toast('Contract not configured', 'error'); return; }
@@ -1709,7 +1377,8 @@ async function revokeRole() {
     toast(`${roleName} revoked from ${shortAddr(address)}`, 'success');
     checkAllRoles();
   } catch (err) {
-    toast('Revoke role failed: ' + extractErrorMsg(err), 'error');
+    if (isUserRejection(err)) { toast('Transaction cancelled', 'warning'); }
+    else { toast('Revoke role failed: ' + extractErrorMsg(err), 'error'); }
   } finally {
     setBtnLoading('btn-revoke', false, 'Revoke Role');
   }
@@ -1735,25 +1404,64 @@ async function checkAllRoles() {
 
   try {
     const roleNames = Object.keys(ROLES);
-    const checks = await Promise.all(
-      roleNames.map(name => registryContract.hasRole(ROLES[name], target).catch(() => false))
+    const contracts = [
+      { label: 'EquipmentRegistry', c: registryContract },
+      { label: 'InspectionLog',     c: inspectionContract },
+      { label: 'OwnershipTransfer', c: transferContract }
+    ].filter(x => x.c);
+
+    // For each contract, check every role — a role is considered granted if
+    // it is granted on ANY of the deployed contracts.
+    const allChecks = await Promise.all(
+      contracts.flatMap(({ c }) =>
+        roleNames.map(name => c.hasRole(ROLES[name], target).catch(() => false))
+      )
+    );
+
+    // Merge: role[i] = true if granted on at least one contract
+    const merged = roleNames.map((_, i) =>
+      contracts.some((_, ci) => allChecks[ci * roleNames.length + i])
     );
 
     const rows = roleNames.map((name, i) => `
       <div class="role-item">
-        <div class="dot ${checks[i] ? 'has-role' : ''}"></div>
+        <div class="dot ${merged[i] ? 'has-role' : ''}"></div>
         <div><strong>${name}</strong></div>
-        ${checks[i] ? '<span class="badge badge-compliant" style="margin-left:auto">✓ Granted</span>' : '<span style="margin-left:auto;font-size:11px;color:#aaa">—</span>'}
+        ${merged[i] ? '<span class="badge badge-compliant" style="margin-left:auto">✓ Granted</span>' : '<span style="margin-left:auto;font-size:11px;color:var(--text-light)">—</span>'}
       </div>`).join('');
 
     container.innerHTML = `
-      <div style="font-size:12px;color:#888;margin-bottom:10px">
-        Roles on EquipmentRegistry for <span class="hash">${shortAddr(target)}</span>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+        Roles across all contracts for <span class="hash">${shortAddr(target)}</span>
       </div>
       ${rows}`;
   } catch (err) {
     container.innerHTML = `<div class="empty-state">Error: ${escHtml(extractErrorMsg(err))}</div>`;
   }
+}
+
+function updateNavTabRoles() {
+  const tabRoles = {
+    dashboard:   () => true,
+    detail:      () => true,
+    register:    () => userRoles.isManufacturer || userRoles.isAdmin,
+    inspect:     () => userRoles.isSCO || userRoles.isAdmin,
+    certificate: () => userRoles.isABSA || userRoles.isSCO || userRoles.isAdmin,
+    transfer:    () => userRoles.isOperator || userRoles.isABSA || userRoles.isAdmin,
+    admin:       () => userRoles.isAdmin
+  };
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    const page = tab.dataset.page;
+    const existing = tab.querySelector('.tab-lock');
+    if (existing) existing.remove();
+    if (account && tabRoles[page] && !tabRoles[page]()) {
+      const lock = document.createElement('span');
+      lock.className = 'tab-lock';
+      lock.textContent = '🔒';
+      lock.title = 'Your wallet does not have the required role for this section';
+      tab.appendChild(lock);
+    }
+  });
 }
 
 async function updateMyRolesDisplay() {
@@ -1777,7 +1485,7 @@ async function updateMyRolesDisplay() {
       <div>${r.name}</div>
       ${r.has
         ? '<span class="badge badge-compliant" style="margin-left:auto">✓ Active</span>'
-        : '<span style="margin-left:auto;font-size:11px;color:#aaa">—</span>'}
+        : '<span style="margin-left:auto;font-size:11px;color:var(--text-light)">—</span>'}
     </div>`).join('');
 }
 
@@ -1792,6 +1500,36 @@ function showPage(id) {
   if (page) page.classList.add('active');
   const tab = document.querySelector(`.nav-tab[data-page="${id}"]`);
   if (tab) tab.classList.add('active');
+  closeSidebar();
+
+  // Restore persisted form data
+  if (id === 'register') restoreFormData(['reg-crn','reg-mdr-text','reg-mdr-hash','reg-mawp']);
+  if (id === 'inspect')  restoreFormData(['insp-equip-id','insp-notes-text','insp-notes-hash']);
+  if (id === 'detail') {
+    const saved = sessionStorage.getItem('il_last_detail_id');
+    const input = document.getElementById('detail-search-id');
+    if (saved && input && !input.value) input.value = saved;
+  }
+}
+
+function restoreFormData(ids) {
+  ids.forEach(id => {
+    const val = sessionStorage.getItem(`il_form_${id}`);
+    if (val !== null) {
+      const el = document.getElementById(id);
+      if (el && !el.value) el.value = val;
+    }
+  });
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
 }
 
 function ensureConnected() {
@@ -1821,7 +1559,8 @@ function copyText(text, btn) {
 
 function addrLink(addr) {
   if (!addr || addr === ZERO_ADDR) return '—';
-  return `<a class="tx-link" href="https://sepolia.etherscan.io/address/${addr}" target="_blank" rel="noopener">${shortAddr(addr)} ↗</a>`;
+  if (!ethers.utils.isAddress(addr)) return escHtml(addr);
+  return `<a class="tx-link" href="https://sepolia.etherscan.io/address/${encodeURIComponent(addr)}" target="_blank" rel="noopener noreferrer">${shortAddr(addr)} ↗</a>`;
 }
 
 function toast(message, type = 'info') {
@@ -1854,18 +1593,19 @@ function statusLabel(s) {
 }
 
 function statusBadge(s) {
-  const labels = ['Registered','ShopInspected','Certified','Active'];
-  const classes = ['badge-registered','badge-shopinspected','badge-certified','badge-active'];
-  return `<span class="badge ${classes[s] || ''}">${labels[s] || s}</span>`;
+  const labels  = ['Registered', 'ShopInspected', 'Certified', 'Active'];
+  const classes = ['badge-registered', 'badge-shopinspected', 'badge-certified', 'badge-active'];
+  const icons   = ['📋 ', '🔍 ', '🏆 ', '✅ '];
+  return `<span class="badge ${classes[s] || ''}">${icons[s] || ''}${labels[s] || s}</span>`;
 }
 
 function equipmentTable(equip) {
-  const hashCell = (h) => h && h !== ZERO_ADDR
-    ? `<span class="hash" title="${h}">${h.slice(0,10)}…${h.slice(-6)}</span>
-       <button class="copy-btn" onclick="copyText('${h}', this)" title="Copy">📋</button>`
+  const hashCell = (h) => h && h !== ZERO_ADDR && h !== ZERO_BYTES32
+    ? `<span class="hash" title="${escHtml(h)}">${escHtml(h.slice(0,10))}…${escHtml(h.slice(-6))}</span>
+       <button class="copy-btn" data-copy="${escHtml(h)}" onclick="copyText(this.dataset.copy, this)" title="Copy">📋</button>`
     : '—';
   const addrCell = (a) => a && a !== ZERO_ADDR
-    ? `${addrLink(a)} <button class="copy-btn" onclick="copyText('${a}', this)" title="Copy">📋</button>`
+    ? `${addrLink(a)} <button class="copy-btn" data-copy="${escHtml(a)}" onclick="copyText(this.dataset.copy, this)" title="Copy">📋</button>`
     : '—';
   return `<table><tbody>
     <tr><td class="info-label">Equipment ID</td><td><strong>#${equip.equipmentId.toString()}</strong></td></tr>
@@ -1883,8 +1623,26 @@ function equipmentTable(equip) {
   </tbody></table>`;
 }
 
+function isUserRejection(err) {
+  return err.code === 4001 || err.code === 'ACTION_REJECTED' ||
+    (typeof err.message === 'string' && err.message.toLowerCase().includes('user rejected'));
+}
+
+function ensureNetwork() {
+  if (networkId && networkId !== SEPOLIA_CHAIN_ID) {
+    toast('Switch MetaMask to Sepolia testnet before sending transactions.', 'error');
+    return false;
+  }
+  return true;
+}
+
 function extractErrorMsg(err) {
-  // Try to extract a human-readable revert reason
+  if (err.code === -32002) return 'MetaMask has a pending request — open MetaMask to respond.';
+  if (err.code === 'UNPREDICTABLE_GAS_LIMIT') return 'Transaction would revert — check contract state and your role permissions.';
+  if (err.code === 'INSUFFICIENT_FUNDS' || (err.message || '').includes('insufficient funds'))
+    return 'Insufficient ETH to cover gas fees.';
+  if ((err.message || '').toLowerCase().includes('nonce too low') || (err.message || '').toLowerCase().includes('nonce mismatch'))
+    return 'Nonce error — try resetting your MetaMask account activity.';
   if (err.reason) return err.reason;
   if (err.data?.message) return err.data.message;
   if (err.error?.message) return err.error.message;
@@ -1902,7 +1660,8 @@ function escHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function setBtnLoading(id, loading, label) {
@@ -1918,6 +1677,209 @@ function setBtnLoading(id, loading, label) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// MY TRANSFERS
+// ═══════════════════════════════════════════════════════════════════
+
+async function loadMyTransfers() {
+  if (!ensureConnected()) return;
+  if (!transferContract) { toast('OwnershipTransfer contract not configured', 'warning'); return; }
+  const container = document.getElementById('my-transfers-container');
+  const btn = document.getElementById('btn-my-transfers');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  container.innerHTML = '<div class="loading-msg">Scanning transfer history…</div>';
+
+  try {
+    const count = registryContract ? await registryContract.equipmentCount().catch(() => null) : null;
+    if (count === null) {
+      container.innerHTML = '<div class="empty-state">Could not determine equipment count — registry not configured.</div>';
+      return;
+    }
+    const total = count.toNumber();
+    const limit = Math.min(total, 50); // scan last 50 IDs for performance
+    const startId = Math.max(1, total - limit + 1);
+
+    const historyPromises = [];
+    for (let i = startId; i <= total; i++) {
+      const eid = i;
+      historyPromises.push(
+        transferContract.getTransferHistory(ethers.BigNumber.from(eid))
+          .then(recs => recs.map(r => ({ ...r, equipmentId: eid })))
+          .catch(() => [])
+      );
+    }
+    const allHistories = await Promise.all(historyPromises);
+    const myTransfers = allHistories.flat()
+      .filter(r =>
+        (r.from  && r.from.toLowerCase()          === account.toLowerCase()) ||
+        (r.to    && r.to.toLowerCase()             === account.toLowerCase()) ||
+        (r.transferredBy && r.transferredBy.toLowerCase() === account.toLowerCase())
+      )
+      .sort((a, b) => b.transferredAt.toNumber() - a.transferredAt.toNumber());
+
+    if (myTransfers.length === 0) {
+      container.innerHTML = `<div class="empty-state">No transfers found for your wallet (scanned last ${limit} equipment IDs).</div>`;
+      return;
+    }
+    container.innerHTML = myTransfers.slice(0, 10).map(r => `
+      <div class="transfer-item">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Equipment #${r.equipmentId}</strong>
+          <button class="btn btn-secondary btn-sm" onclick="quickDetail(${r.equipmentId})">View</button>
+        </div>
+        <div style="margin-top:4px">
+          <span class="hash">${shortAddr(r.from)}</span> → <span class="hash">${shortAddr(r.to)}</span>
+        </div>
+        <div style="color:var(--text-muted);font-size:11px;margin-top:3px">${tsToDate(r.transferredAt.toNumber())} &nbsp;·&nbsp; By: ${shortAddr(r.transferredBy)}</div>
+      </div>`).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Error: ${escHtml(extractErrorMsg(err))}</div>`;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Load'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RECENT ACTIVITY
+// ═══════════════════════════════════════════════════════════════════
+
+async function loadRecentActivity() {
+  const container = document.getElementById('activity-container');
+  if (!provider) { toast('Connect wallet to load activity', 'warning'); return; }
+  container.innerHTML = '<div class="loading-msg">Fetching recent on-chain events…</div>';
+
+  try {
+    const latestBlock = await provider.getBlockNumber();
+    const fromBlock   = Math.max(0, latestBlock - 2000); // ~6 hours on Sepolia
+    const activities  = [];
+
+    const sources = [
+      { c: registryContract,   name: 'EquipmentRegistry' },
+      { c: inspectionContract, name: 'InspectionLog' },
+      { c: transferContract,   name: 'OwnershipTransfer' }
+    ].filter(x => x.c);
+
+    for (const { c, name } of sources) {
+      try {
+        const logs = await c.queryFilter({}, fromBlock, latestBlock);
+        logs.forEach(log => activities.push({
+          blockNumber: log.blockNumber,
+          event:       log.event || 'Event',
+          contract:    name,
+          txHash:      log.transactionHash
+        }));
+      } catch (_) { /* skip if filter unsupported */ }
+    }
+
+    activities.sort((a, b) => b.blockNumber - a.blockNumber);
+    const recent = activities.slice(0, 15);
+
+    if (recent.length === 0) {
+      container.innerHTML = '<div class="empty-state">No events found in the last ~2 000 blocks on Sepolia.</div>';
+      return;
+    }
+
+    const eventIcons = {
+      EquipmentRegistered: '📋', InspectionLogged:   '🔍',
+      TransferCompleted:   '🔄', CertificateIssued:  '🏆',
+      ShopInspectionSigned:'✍️', EquipmentActivated: '✅',
+      TransferInitiated:   '↗️', TransferCancelled:  '✖️'
+    };
+
+    container.innerHTML = recent.map(a => `
+      <div class="activity-item">
+        <div class="activity-icon">${eventIcons[a.event] || '⚡'}</div>
+        <div>
+          <div class="activity-title">${escHtml(a.event)}</div>
+          <div class="activity-meta">
+            ${escHtml(a.contract)} &nbsp;·&nbsp; Block #${a.blockNumber}
+            &nbsp;·&nbsp;
+            <a class="tx-link" href="https://sepolia.etherscan.io/tx/${encodeURIComponent(a.txHash)}" target="_blank" rel="noopener noreferrer">
+              ${shortAddr(a.txHash)} ↗
+            </a>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="empty-state">Error: ${escHtml(extractErrorMsg(err))}</div>`;
+    toast('Failed to load activity: ' + extractErrorMsg(err), 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// PRINT CERTIFICATE
+// ═══════════════════════════════════════════════════════════════════
+
+async function printCertificate() {
+  if (!registryContract) { toast('Registry contract not configured', 'warning'); return; }
+  const id = document.getElementById('cert-lookup-id').value.trim();
+  if (!id) { toast('Load an equipment record first', 'warning'); return; }
+
+  try {
+    const equip = await registryContract.getEquipment(ethers.BigNumber.from(id));
+    if (equip.status < 2) {
+      toast('Equipment must be Certified or Active before printing', 'warning');
+      return;
+    }
+    const fields = [
+      ['Certificate Type',  'Certificate of Inspection (ABSA)'],
+      ['Equipment ID',      '#' + equip.equipmentId.toString()],
+      ['CRN',               equip.crn],
+      ['A-Number',          equip.aNumber || '—'],
+      ['MAWP',              equip.mawp.toString() + ' kPa'],
+      ['Status',            statusLabel(equip.status)],
+      ['Manufacturer',      equip.manufacturer],
+      ['Certificate Issuer',equip.certificateIssuer],
+      ['Issued On',         tsToDate(equip.certificateIssuedAt.toNumber())],
+      ['Network',           'Ethereum Sepolia Testnet (Chain ID: 11155111)'],
+      ['Printed At',        new Date().toLocaleString()]
+    ];
+    document.getElementById('print-cert-fields').innerHTML = fields.map(([label, value]) => `
+      <div class="cert-field">
+        <span class="cert-label">${escHtml(label)}</span>
+        <span>${escHtml(String(value))}</span>
+      </div>`).join('');
+    document.getElementById('print-cert-footer').innerHTML =
+      `Blockchain-verified &nbsp;·&nbsp; IronLedger &nbsp;·&nbsp; Registry: ${shortAddr(registryContract.address)}`;
+    window.print();
+  } catch (err) {
+    toast('Could not load certificate data: ' + extractErrorMsg(err), 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// THEME (DARK MODE)
+// ═══════════════════════════════════════════════════════════════════
+
+function getPreferredTheme() {
+  const stored = localStorage.getItem('il_theme');
+  if (stored === 'dark' || stored === 'light') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('il_theme', next);
+  applyTheme(next);
+}
+
+// Apply theme on load (before DOMContentLoaded to avoid flash)
+applyTheme(getPreferredTheme());
+
+// Listen for OS preference changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (!localStorage.getItem('il_theme')) {
+    applyTheme(e.matches ? 'dark' : 'light');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // NAV & INIT
 // ═══════════════════════════════════════════════════════════════════
 
@@ -1925,21 +1887,37 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => showPage(tab.dataset.page));
 });
 
+// Form persistence — auto-save inputs to sessionStorage
+['reg-crn','reg-mdr-text','reg-mdr-hash','reg-mawp',
+ 'insp-equip-id','insp-notes-text','insp-notes-hash'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', () => sessionStorage.setItem(`il_form_${id}`, el.value));
+});
+
+// Escape key closes settings modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeSettings();
+});
+
 // MetaMask event listeners
 if (window.ethereum) {
   window.ethereum.on('accountsChanged', accounts => {
     account = accounts[0] || null;
     if (account) {
+      // Guard: provider may be null if the user never clicked Connect Wallet
+      if (!provider) {
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+      }
       signer = provider.getSigner();
       updateWalletUI();
+      initContracts();
       detectRoles().then(() => {
         updateDashboardBanner();
         updateMyRolesDisplay();
+        loadDashboard();
       });
     } else {
-      signer = null;
-      account = null;
-      updateWalletUI();
+      disconnectWallet();
     }
   });
 
@@ -1949,12 +1927,35 @@ if (window.ethereum) {
 }
 
 // Auto-init: seed deployed addresses into localStorage if not already set
-window.addEventListener('load', () => {
+// and silently reconnect wallet if MetaMask already has permission
+window.addEventListener('load', async () => {
   if (!localStorage.getItem('il_registry'))   localStorage.setItem('il_registry',   DEPLOYED.registry);
   if (!localStorage.getItem('il_inspection')) localStorage.setItem('il_inspection', DEPLOYED.inspection);
   if (!localStorage.getItem('il_transfer'))   localStorage.setItem('il_transfer',   DEPLOYED.transfer);
   updateAddressPreviews();
+
+  // Silently restore wallet connection — eth_accounts never triggers a popup
+  if (window.ethereum) {
+    try {
+      document.getElementById('wallet-label').textContent = 'Connecting…';
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts && accounts.length > 0) {
+        account = accounts[0];
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        const network = await provider.getNetwork();
+        networkId = network.chainId;
+        updateWalletUI();
+        initContracts();
+        await detectRoles();
+        updateDashboardBanner();
+        loadDashboard();
+      } else {
+        document.getElementById('wallet-label').textContent = 'Connect Wallet';
+      }
+    } catch (err) {
+      console.warn('Auto-reconnect failed:', err.message);
+      document.getElementById('wallet-label').textContent = 'Connect Wallet';
+    }
+  }
 });
-</script>
-</body>
-</html>
