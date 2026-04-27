@@ -17,3 +17,5 @@ typechain-types/
 # Coverage reports
 coverage/
 coverage.json
+gas-report.txt
+result.txt

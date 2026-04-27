@@ -62,7 +62,11 @@ contract InspectionLog is IInspectionLog, AccessControl {
         );
 
         lastInspectedAt[equipmentId] = block.timestamp;
-        complianceFlag[equipmentId] = (result == Result.Pass);
+        bool compliant = (result == Result.Pass);
+        complianceFlag[equipmentId] = compliant;
+
+        emit InspectionLogged(equipmentId, inspectionId, msg.sender, result);
+        emit ComplianceFlagUpdated(equipmentId, compliant);
     }
 
     /// @inheritdoc IInspectionLog
@@ -73,6 +77,7 @@ contract InspectionLog is IInspectionLog, AccessControl {
             block.timestamp > lastInspectedAt[equipmentId] + inspectionInterval
         ) {
             complianceFlag[equipmentId] = false;
+            emit ComplianceFlagUpdated(equipmentId, false);
         }
     }
 

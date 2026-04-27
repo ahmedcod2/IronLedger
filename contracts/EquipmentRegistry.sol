@@ -76,6 +76,8 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
         eq.shopInspector = msg.sender;
         eq.shopInspectedAt = block.timestamp;
         eq.status = Status.ShopInspected;
+
+        emit ShopInspectionSigned(equipmentId, msg.sender);
     }
 
     /// @inheritdoc IEquipmentRegistry
@@ -92,6 +94,8 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
         eq.certificateIssuer = msg.sender;
         eq.certificateIssuedAt = block.timestamp;
         eq.status = Status.Certified;
+
+        emit CertificateIssued(equipmentId, msg.sender, aNumber);
     }
 
     /// @inheritdoc IEquipmentRegistry
@@ -101,6 +105,8 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
         require(eq.status == Status.Certified, "EquipmentRegistry: equipment has not been certified");
 
         eq.status = Status.Active;
+
+        emit EquipmentActivated(equipmentId);
     }
 
     // ─── View Functions ───────────────────────────────────────────────────────

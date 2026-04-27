@@ -41,6 +41,17 @@ interface IEquipmentRegistry {
     /// @notice Returns true if the equipment is in Certified or Active state.
     function isCertified(uint256 equipmentId) external view returns (bool);
 
+    // ─── Events ───────────────────────────────────────────────────────────────
+
     /// @notice Emitted when a new equipment asset is registered.
     event EquipmentRegistered(uint256 indexed equipmentId, address indexed manufacturer, string crn);
+
+    /// @notice Emitted when a Safety Codes Officer signs the shop inspection.
+    event ShopInspectionSigned(uint256 indexed equipmentId, address indexed inspector);
+
+    /// @notice Emitted when ABSA issues a Certificate of Inspection.
+    event CertificateIssued(uint256 indexed equipmentId, address indexed issuer, string aNumber);
+
+    /// @notice Emitted when ABSA activates the equipment for in-service operation.
+    event EquipmentActivated(uint256 indexed equipmentId);
 }

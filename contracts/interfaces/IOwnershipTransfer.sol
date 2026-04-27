@@ -31,4 +31,18 @@ interface IOwnershipTransfer {
 
     /// @notice Returns the address of the pending transfer recipient, or address(0) if none.
     function getPendingTransfer(uint256 equipmentId) external view returns (address to);
+
+    // ─── Events ───────────────────────────────────────────────────────────────
+
+    /// @notice Emitted when ABSA assigns the first custodian after equipment activation.
+    event CustodyAssigned(uint256 indexed equipmentId, address indexed operator);
+
+    /// @notice Emitted when a custodian initiates a pending transfer.
+    event TransferInitiated(uint256 indexed equipmentId, address indexed from, address indexed to);
+
+    /// @notice Emitted when a pending transfer is finalised and ownership changes.
+    event TransferCompleted(uint256 indexed equipmentId, address indexed from, address indexed to);
+
+    /// @notice Emitted when a pending transfer is cancelled by the current custodian.
+    event TransferCancelled(uint256 indexed equipmentId, address indexed cancelledBy);
 }

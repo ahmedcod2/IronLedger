@@ -1,7 +1,7 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config(); // loads SEPOLIA_RPC_URL and PRIVATE_KEY from .env
+require("hardhat-gas-reporter");
+require("dotenv").config();
 
-/** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: "0.8.24",
   networks: {
@@ -11,5 +11,12 @@ module.exports = {
         ? [process.env.PRIVATE_KEY.startsWith("0x") ? process.env.PRIVATE_KEY : "0x" + process.env.PRIVATE_KEY]
         : []
     }
+  },
+  gasReporter: {
+    enabled: true,
+    currency: "USD",
+    coinmarketcap: process.env.CMC_KEY,
+    outputFile: "gas-report.txt",
+    noColors: true
   }
 };
