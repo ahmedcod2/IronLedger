@@ -54,7 +54,6 @@ describe("IronLedger — Full Lifecycle & Gas Report", function () {
 
     it("registerEquipment — emits EquipmentRegistered and returns ID 1", async function () {
       const tx = await registry.connect(manufacturer).registerEquipment(CRN, MDR_HASH, MAWP);
-      const receipt = await tx.wait();
       await expect(tx)
         .to.emit(registry, "EquipmentRegistered")
         .withArgs(1, manufacturer.address, CRN);
@@ -107,7 +106,7 @@ describe("IronLedger — Full Lifecycle & Gas Report", function () {
     it("activateEquipment — emits EquipmentActivated", async function () {
       await expect(registry.connect(absa).activateEquipment(1))
         .to.emit(registry, "EquipmentActivated")
-        .withArgs(1);
+        .withArgs(1, absa.address);
 
       const eq = await registry.getEquipment(1);
       expect(eq.status).to.equal(3); // Active

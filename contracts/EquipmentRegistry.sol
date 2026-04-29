@@ -106,7 +106,7 @@ contract EquipmentRegistry is IEquipmentRegistry, AccessControl {
 
         eq.status = Status.Active;
 
-        emit EquipmentActivated(equipmentId);
+        emit EquipmentActivated(equipmentId, msg.sender);
     }
 
     // ─── View Functions ───────────────────────────────────────────────────────

@@ -53,5 +53,5 @@ interface IEquipmentRegistry {
     event CertificateIssued(uint256 indexed equipmentId, address indexed issuer, string aNumber);
 
     /// @notice Emitted when ABSA activates the equipment for in-service operation.
-    event EquipmentActivated(uint256 indexed equipmentId);
+    event EquipmentActivated(uint256 indexed equipmentId, address indexed activatedBy);
 }
