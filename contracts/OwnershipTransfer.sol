@@ -13,7 +13,6 @@ import "./libraries/Roles.sol";
 ///      The current custodian initiates the transfer; they confirm it after an off-chain handover.
 contract OwnershipTransfer is IOwnershipTransfer, AccessControl {
     IEquipmentRegistry public immutable registry;
-
     IInspectionLog public immutable inspectionLog;
 
     mapping(uint256 => address) public currentOwner;
@@ -78,6 +77,8 @@ contract OwnershipTransfer is IOwnershipTransfer, AccessControl {
                 transferredBy: msg.sender
             })
         );
+
+        emit CustodyAssigned(equipmentId, operator);
     }
 
     /// @inheritdoc IOwnershipTransfer
@@ -94,6 +95,8 @@ contract OwnershipTransfer is IOwnershipTransfer, AccessControl {
         require(inspectionLog.isCompliant(equipmentId), "OwnershipTransfer: equipment is not compliant");
 
         pendingTransfer[equipmentId] = to;
+
+        emit TransferInitiated(equipmentId, msg.sender, to);
     }
 
     /// @inheritdoc IOwnershipTransfer
@@ -118,6 +121,8 @@ contract OwnershipTransfer is IOwnershipTransfer, AccessControl {
                 transferredBy: msg.sender
             })
         );
+
+        emit TransferCompleted(equipmentId, from, to);
     }
 
     /// @inheritdoc IOwnershipTransfer
@@ -128,6 +133,8 @@ contract OwnershipTransfer is IOwnershipTransfer, AccessControl {
     {
         require(pendingTransfer[equipmentId] != address(0), "OwnershipTransfer: no pending transfer");
         pendingTransfer[equipmentId] = address(0);
+
+        emit TransferCancelled(equipmentId, msg.sender);
     }
 
     // ─── View Functions ───────────────────────────────────────────────────────

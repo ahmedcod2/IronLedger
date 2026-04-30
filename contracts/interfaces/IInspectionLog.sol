@@ -32,4 +32,18 @@ interface IInspectionLog {
     /// @notice Returns the most recent inspection record for an equipment asset.
     /// @dev Reverts if no inspections have been recorded for the asset.
     function getLastInspection(uint256 equipmentId) external view returns (InspectionRecord memory);
+
+    // ─── Events ───────────────────────────────────────────────────────────────
+
+    /// @notice Emitted when a new inspection is recorded for an equipment asset.
+    event InspectionLogged(
+        uint256 indexed equipmentId,
+        uint256 indexed inspectionId,
+        address indexed inspector,
+        Result result
+    );
+
+    /// @notice Emitted when the compliance flag changes (either direction).
+    /// @param compliant True if the asset is now compliant; false if revoked.
+    event ComplianceFlagUpdated(uint256 indexed equipmentId, bool compliant);
 }
