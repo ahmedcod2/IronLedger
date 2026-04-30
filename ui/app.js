@@ -407,7 +407,7 @@ async function loadDashboard(page) {
       `<div class="empty-state">Error loading data: ${escHtml(err.message)}</div>`;
     toast('Dashboard load error: ' + err.message, 'error');
   } finally {
-    setBtnLoading('btn-dash-refresh', false, '↺ Refresh');
+    setBtnLoading('btn-dash-refresh', false, `${icon('refresh-cw', 14)} Refresh`);
   }
 }
 
@@ -518,8 +518,8 @@ function renderDashTable() {
     <td>${escHtml(e.crn)}</td>
     <td>${statusBadge(e.status)}</td>
     <td>${compliant
-      ? '<span class="badge badge-compliant">✓ Compliant</span>'
-      : '<span class="badge badge-flagged">⚠ Flagged</span>'}</td>
+      ? `<span class="badge badge-compliant">${icon('check',11)} Compliant</span>`
+      : `<span class="badge badge-flagged">${icon('alert-triangle',11)} Flagged</span>`}</td>
     <td>${e.mawp.toString()} kPa</td>
     <td>${addrLink(e.manufacturer)}</td>
     <td>${tsToDate(e.registeredAt.toNumber())}</td>
@@ -650,7 +650,7 @@ async function registerEquipment() {
 
     document.getElementById('reg-result-box').innerHTML = `
       <div class="gate-row gate-pass">
-        <div class="gate-icon">✅</div>
+        <div class="gate-icon">${icon('check-circle',16)}</div>
         <div>
           <div class="gate-label">Equipment Registered &mdash; ID: <strong>#${escHtml(newId)}</strong></div>
           <div class="gate-sub">CRN: ${escHtml(crn)} &nbsp;&middot;&nbsp; MAWP: ${escHtml(mawp)} kPa</div>
@@ -661,14 +661,14 @@ async function registerEquipment() {
         <a class="tx-link" href="https://sepolia.etherscan.io/tx/${encodeURIComponent(tx.hash)}" target="_blank" rel="noopener noreferrer">
           ${shortAddr(tx.hash)} ↗
         </a>
-        <button class="copy-btn" data-copy="${escHtml(tx.hash)}" onclick="copyText(this.dataset.copy, this)" title="Copy tx hash">📋</button><br/>
+        <button class="copy-btn" data-copy="${escHtml(tx.hash)}" onclick="copyText(this.dataset.copy, this)" title="Copy tx hash">${icon('copy',12)}</button><br/>
         <strong>MDR Hash:</strong>
         <span class="hash" title="${escHtml(mdrHash)}">${escHtml(mdrHash.slice(0,12))}…${escHtml(mdrHash.slice(-8))}</span>
-        <button class="copy-btn" data-copy="${escHtml(mdrHash)}" onclick="copyText(this.dataset.copy, this)" title="Copy MDR hash">📋</button><br/>
+        <button class="copy-btn" data-copy="${escHtml(mdrHash)}" onclick="copyText(this.dataset.copy, this)" title="Copy MDR hash">${icon('copy',12)}</button><br/>
         <strong>Next step:</strong> <a href="#" onclick="document.getElementById('sco-equip-id').value='${escHtml(newId)}';showPage('certificate');return false;">Sign Shop Inspection →</a>
       </div>
       <div class="status-steps" style="margin-top:14px">
-        <div class="status-step done"><div class="step-circle">✓</div><div class="step-label">Registered</div></div>
+        <div class="status-step done"><div class="step-circle">${icon('check',10)}</div><div class="step-label">Registered</div></div>
         <div class="status-step current"><div class="step-circle">2</div><div class="step-label">Shop Inspect</div></div>
         <div class="status-step"><div class="step-circle">3</div><div class="step-label">Certified</div></div>
         <div class="status-step"><div class="step-circle">4</div><div class="step-label">Active</div></div>
@@ -685,7 +685,7 @@ async function registerEquipment() {
       const msg = extractErrorMsg(err);
       toast('Registration failed: ' + msg, 'error');
       document.getElementById('reg-result-box').innerHTML =
-        `<div class="gate-row gate-fail"><div class="gate-icon">✗</div>
+        `<div class="gate-row gate-fail"><div class="gate-icon">${icon('x-circle',16)}</div>
          <div><div class="gate-label">Transaction Failed</div>
          <div class="gate-sub">${escHtml(msg)}</div></div></div>`;
     }
@@ -772,12 +772,12 @@ async function checkCompliance() {
 
     if (compliant) {
       res.innerHTML = `<div class="gate-row gate-pass">
-        <div class="gate-icon">✓</div>
+        <div class="gate-icon">${icon('check-circle',16)}</div>
         <div><div class="gate-label">Equipment #${escHtml(id)} — Compliant</div>
         <div class="gate-sub">No active compliance flags · eligible for transfer</div></div></div>`;
     } else {
       res.innerHTML = `<div class="gate-row gate-fail">
-        <div class="gate-icon">✗</div>
+        <div class="gate-icon">${icon('x-circle',16)}</div>
         <div><div class="gate-label">Equipment #${escHtml(id)} — Non-Compliant</div>
         <div class="gate-sub">Active flag: ${flagged} · Transfer blocked</div></div></div>`;
     }
@@ -843,8 +843,8 @@ async function loadInspectionHistory() {
         <td>${tsToDate(r.inspectedAt.toNumber())}</td>
         <td><span class="hash">${shortAddr(r.inspector)}</span></td>
         <td>${r.result === 0
-          ? '<span class="badge badge-compliant">✓ Pass</span>'
-          : '<span class="badge badge-flagged">✗ Fail</span>'}</td>
+          ? `<span class="badge badge-compliant">${icon('check',11)} Pass</span>`
+          : `<span class="badge badge-flagged">${icon('x',11)} Fail</span>`}</td>
         <td><span class="hash" title="${escHtml(r.notesHash)}">${escHtml(r.notesHash.slice(0,10))}…</span></td>
       </tr>`).join('');
 
@@ -942,16 +942,16 @@ async function loadCertPrecheck() {
     container.innerHTML = `
       <div class="section-label">Pre-conditions</div>
       <div class="gate-row ${equip.registeredAt.toNumber() > 0 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
-        <div class="gate-icon">${equip.registeredAt.toNumber() > 0 ? '✓' : '✗'}</div>
+        <div class="gate-icon">${equip.registeredAt.toNumber() > 0 ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">Equipment Registered</div><div class="gate-sub">Status: ${statusLabel(s)}</div></div>
       </div>
       <div class="gate-row ${s >= 1 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
-        <div class="gate-icon">${s >= 1 ? '✓' : '○'}</div>
+        <div class="gate-icon">${s >= 1 ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">Shop Inspection Signed</div>
         <div class="gate-sub">${s >= 1 ? `SCO: ${shortAddr(equip.shopInspector)}` : 'Awaiting SCO sign-off'}</div></div>
       </div>
       <div class="gate-row ${s < 2 ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:0">
-        <div class="gate-icon">${s < 2 ? '✓' : '✗'}</div>
+        <div class="gate-icon">${s < 2 ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">Certificate Not Yet Issued</div>
         <div class="gate-sub">${s < 2 ? 'Ready to issue' : 'Already issued — ' + escHtml(equip.aNumber)}</div></div>
       </div>`;
@@ -1023,15 +1023,15 @@ async function loadTransferGate() {
     container.innerHTML = `
       <div class="section-label">Compliance Gate</div>
       <div class="gate-row ${certified ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
-        <div class="gate-icon">${certified ? '✓' : '✗'}</div>
+        <div class="gate-icon">${certified ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">Certificate Issued</div><div class="gate-sub">isCertified() = ${certified}</div></div>
       </div>
       <div class="gate-row ${compliant ? 'gate-pass' : 'gate-fail'}" style="margin-bottom:6px">
-        <div class="gate-icon">${compliant ? '✓' : '✗'}</div>
+        <div class="gate-icon">${compliant ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">No Active Compliance Flag</div><div class="gate-sub">isCompliant() = ${compliant}</div></div>
       </div>
       <div class="gate-row ${canTransfer ? 'gate-pass' : 'gate-fail'}">
-        <div class="gate-icon">${canTransfer ? '✓' : '✗'}</div>
+        <div class="gate-icon">${canTransfer ? icon('check',16) : icon('x',16)}</div>
         <div><div class="gate-label">${canTransfer ? 'Transfer Eligible' : 'Transfer Blocked'}</div>
         <div class="gate-sub">Current owner: ${shortAddr(owner)}</div></div>
       </div>`;
@@ -1226,8 +1226,8 @@ async function loadEquipmentDetail() {
           <td>${tsToDate(r.inspectedAt.toNumber())}</td>
           <td><span class="hash">${shortAddr(r.inspector)}</span></td>
           <td>${r.result === 0
-            ? '<span class="badge badge-compliant">✓ Pass</span>'
-            : '<span class="badge badge-flagged">✗ Fail</span>'}</td>
+            ? `<span class="badge badge-compliant">${icon('check',11)} Pass</span>`
+            : `<span class="badge badge-flagged">${icon('x',11)} Fail</span>`}</td>
         </tr>`).join('');
       document.getElementById('detail-inspection-table').innerHTML = `
         <table><thead><tr><th>#</th><th>Date</th><th>Inspector</th><th>Result</th></tr></thead>
@@ -1427,7 +1427,7 @@ async function checkAllRoles() {
       <div class="role-item">
         <div class="dot ${merged[i] ? 'has-role' : ''}"></div>
         <div><strong>${name}</strong></div>
-        ${merged[i] ? '<span class="badge badge-compliant" style="margin-left:auto">✓ Granted</span>' : '<span style="margin-left:auto;font-size:11px;color:var(--text-light)">—</span>'}
+        ${merged[i] ? `<span class="badge badge-compliant" style="margin-left:auto">${icon('check',11)} Granted</span>` : '<span style="margin-left:auto;font-size:11px;color:var(--text-light)">—</span>'}
       </div>`).join('');
 
     container.innerHTML = `
@@ -1457,7 +1457,7 @@ function updateNavTabRoles() {
     if (account && tabRoles[page] && !tabRoles[page]()) {
       const lock = document.createElement('span');
       lock.className = 'tab-lock';
-      lock.textContent = '🔒';
+      lock.innerHTML = icon('lock', 12);
       lock.title = 'Your wallet does not have the required role for this section';
       tab.appendChild(lock);
     }
@@ -1484,7 +1484,7 @@ async function updateMyRolesDisplay() {
       <div class="dot ${r.has ? 'has-role' : ''}"></div>
       <div>${r.name}</div>
       ${r.has
-        ? '<span class="badge badge-compliant" style="margin-left:auto">✓ Active</span>'
+        ? `<span class="badge badge-compliant" style="margin-left:auto">${icon('check',11)} Active</span>`
         : '<span style="margin-left:auto;font-size:11px;color:var(--text-light)">—</span>'}
     </div>`).join('');
 }
@@ -1552,9 +1552,43 @@ function ensureContract(name) {
 
 function copyText(text, btn) {
   navigator.clipboard.writeText(text).then(() => {
-    if (btn) { const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1500); }
+    if (btn) { const orig = btn.innerHTML; btn.innerHTML = icon('check', 12); setTimeout(() => btn.innerHTML = orig, 1500); }
     else toast('Copied to clipboard', 'success');
   }).catch(() => toast('Could not copy to clipboard', 'error'));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SVG ICON HELPER
+// ═══════════════════════════════════════════════════════════════════
+function icon(name, size = 16) {
+  const attr = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:middle;display:inline-block;flex-shrink:0"`;
+  const paths = {
+    'zap':            '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    'settings':       '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    'moon':           '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+    'sun':            '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+    'menu':           '<line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>',
+    'info':           '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+    'refresh-cw':     '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    'download':       '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+    'printer':        '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/>',
+    'award':          '<circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>',
+    'check-circle':   '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>',
+    'x-circle':       '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+    'alert-triangle': '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/>',
+    'clipboard':      '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+    'search':         '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    'repeat':         '<path d="m17 2 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+    'pen-line':       '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>',
+    'arrow-up-right': '<path d="M7 7h10v10"/><path d="M7 17 17 7"/>',
+    'x':              '<path d="M18 6 6 18M6 6l12 12"/>',
+    'lock':           '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    'check':          '<path d="M20 6 9 17l-5-5"/>',
+    'copy':           '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>'
+  };
+  const d = paths[name];
+  if (!d) return '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" ${attr}>${d}</svg>`;
 }
 
 function addrLink(addr) {
@@ -1568,8 +1602,8 @@ function toast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  const icon = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' }[type] || '';
-  el.innerHTML = `<span style="flex-shrink:0">${icon}</span><span>${escHtml(message)}</span>`;
+  const toastIcon = { success: icon('check-circle', 16), error: icon('x-circle', 16), info: icon('info', 16), warning: icon('alert-triangle', 16) }[type] || '';
+  el.innerHTML = `<span style="flex-shrink:0;display:flex;align-items:center">${toastIcon}</span><span>${escHtml(message)}</span>`;
   container.appendChild(el);
   setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, dur - 400);
   setTimeout(() => el.remove(), dur);
@@ -1595,17 +1629,17 @@ function statusLabel(s) {
 function statusBadge(s) {
   const labels  = ['Registered', 'ShopInspected', 'Certified', 'Active'];
   const classes = ['badge-registered', 'badge-shopinspected', 'badge-certified', 'badge-active'];
-  const icons   = ['📋 ', '🔍 ', '🏆 ', '✅ '];
+  const icons   = [icon('clipboard',12)+' ', icon('search',12)+' ', icon('award',12)+' ', icon('check-circle',12)+' '];
   return `<span class="badge ${classes[s] || ''}">${icons[s] || ''}${labels[s] || s}</span>`;
 }
 
 function equipmentTable(equip) {
   const hashCell = (h) => h && h !== ZERO_ADDR && h !== ZERO_BYTES32
     ? `<span class="hash" title="${escHtml(h)}">${escHtml(h.slice(0,10))}…${escHtml(h.slice(-6))}</span>
-       <button class="copy-btn" data-copy="${escHtml(h)}" onclick="copyText(this.dataset.copy, this)" title="Copy">📋</button>`
+       <button class="copy-btn" data-copy="${escHtml(h)}" onclick="copyText(this.dataset.copy, this)" title="Copy">${icon('copy',12)}</button>`
     : '—';
   const addrCell = (a) => a && a !== ZERO_ADDR
-    ? `${addrLink(a)} <button class="copy-btn" data-copy="${escHtml(a)}" onclick="copyText(this.dataset.copy, this)" title="Copy">📋</button>`
+    ? `${addrLink(a)} <button class="copy-btn" data-copy="${escHtml(a)}" onclick="copyText(this.dataset.copy, this)" title="Copy">${icon('copy',12)}</button>`
     : '—';
   return `<table><tbody>
     <tr><td class="info-label">Equipment ID</td><td><strong>#${equip.equipmentId.toString()}</strong></td></tr>
@@ -1779,15 +1813,15 @@ async function loadRecentActivity() {
     }
 
     const eventIcons = {
-      EquipmentRegistered: '📋', InspectionLogged:   '🔍',
-      TransferCompleted:   '🔄', CertificateIssued:  '🏆',
-      ShopInspectionSigned:'✍️', EquipmentActivated: '✅',
-      TransferInitiated:   '↗️', TransferCancelled:  '✖️'
+      EquipmentRegistered: icon('clipboard',18),  InspectionLogged:   icon('search',18),
+      TransferCompleted:   icon('repeat',18),     CertificateIssued:  icon('award',18),
+      ShopInspectionSigned:icon('pen-line',18),   EquipmentActivated: icon('check-circle',18),
+      TransferInitiated:   icon('arrow-up-right',18), TransferCancelled: icon('x',18)
     };
 
     container.innerHTML = recent.map(a => `
       <div class="activity-item">
-        <div class="activity-icon">${eventIcons[a.event] || '⚡'}</div>
+        <div class="activity-icon">${eventIcons[a.event] || icon('zap',18)}</div>
         <div>
           <div class="activity-title">${escHtml(a.event)}</div>
           <div class="activity-meta">
@@ -1859,7 +1893,7 @@ function getPreferredTheme() {
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   const btn = document.getElementById('theme-toggle-btn');
-  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  if (btn) btn.innerHTML = theme === 'dark' ? icon('sun', 18) : icon('moon', 18);
 }
 
 function toggleTheme() {
